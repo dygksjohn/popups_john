@@ -57,7 +57,13 @@ const QUICK_ACTIONS = [
           formType: "notice",
           page: "notice",
           route: "/admin/board/notice",
-          formData: { scope: "ALL", title: "", content: "", pinned: false, status: "DRAFT" },
+          formData: {
+            scope: "ALL",
+            title: "",
+            content: "",
+            pinned: false,
+            status: "DRAFT",
+          },
           execution: {
             supported: false,
             executeType: "SAVE_NOTICE",
@@ -87,7 +93,12 @@ const QUICK_ACTIONS = [
           formType: "notification",
           page: "alertManage",
           route: "/admin/participant/alert",
-          formData: { title: "", content: "", alertMode: "BROADCAST", notificationType: "NOTICE" },
+          formData: {
+            title: "",
+            content: "",
+            alertMode: "BROADCAST",
+            notificationType: "NOTICE",
+          },
           execution: {
             supported: false,
             reason: "알림 제목과 내용을 먼저 입력해 주세요.",
@@ -105,7 +116,8 @@ const QUICK_ACTIONS = [
     kind: "apply",
     actionKey: "notification_broadcast_send",
     category: "execute",
-    feedback: "전체 알림 발송 준비를 도와드릴게요. 제목과 내용을 먼저 적어 주세요 🐾",
+    feedback:
+      "전체 알림 발송 준비를 도와드릴게요. 제목과 내용을 먼저 적어 주세요 🐾",
     actions: [
       {
         type: "PREFILL_FORM",
@@ -115,7 +127,12 @@ const QUICK_ACTIONS = [
           formType: "notification",
           page: "alertManage",
           route: "/admin/participant/alert",
-          formData: { title: "", content: "", alertMode: "BROADCAST", notificationType: "NOTICE" },
+          formData: {
+            title: "",
+            content: "",
+            alertMode: "BROADCAST",
+            notificationType: "NOTICE",
+          },
           execution: {
             supported: false,
             executeType: "SEND_BROADCAST_NOTIFICATION",
@@ -135,7 +152,8 @@ const QUICK_ACTIONS = [
     kind: "apply",
     actionKey: "notification_event_send",
     category: "execute",
-    feedback: "행사 알림 발송 준비를 열어둘게요. 행사 번호를 먼저 골라 주세요 🐶",
+    feedback:
+      "행사 알림 발송 준비를 열어둘게요. 행사 번호를 먼저 골라 주세요 🐶",
     actions: [
       {
         type: "PREFILL_FORM",
@@ -145,7 +163,13 @@ const QUICK_ACTIONS = [
           formType: "notification",
           page: "alertManage",
           route: "/admin/participant/alert",
-          formData: { title: "", content: "", alertMode: "EVENT", notificationType: "NOTICE", targetType: "EVENT" },
+          formData: {
+            title: "",
+            content: "",
+            alertMode: "EVENT",
+            notificationType: "NOTICE",
+            targetType: "EVENT",
+          },
           execution: {
             supported: false,
             executeType: "SEND_EVENT_NOTIFICATION",
@@ -166,7 +190,13 @@ const QUICK_ACTIONS = [
     actionKey: "navigate_notice_manage",
     category: "navigate",
     feedback: "공지 관리 화면으로 안내할게요.",
-    actions: [{ type: "NAVIGATE", actionKey: "navigate_notice_manage", payload: { route: "/admin/board/notice" } }],
+    actions: [
+      {
+        type: "NAVIGATE",
+        actionKey: "navigate_notice_manage",
+        payload: { route: "/admin/board/notice" },
+      },
+    ],
   },
   {
     id: "navigate_notification",
@@ -176,7 +206,13 @@ const QUICK_ACTIONS = [
     actionKey: "navigate_notification_manage",
     category: "navigate",
     feedback: "알림 관리 화면으로 안내할게요.",
-    actions: [{ type: "NAVIGATE", actionKey: "navigate_notification_manage", payload: { route: "/admin/participant/alert" } }],
+    actions: [
+      {
+        type: "NAVIGATE",
+        actionKey: "navigate_notification_manage",
+        payload: { route: "/admin/participant/alert" },
+      },
+    ],
   },
   {
     id: "navigate_refund",
@@ -186,7 +222,13 @@ const QUICK_ACTIONS = [
     actionKey: "navigate_refund_manage",
     category: "navigate",
     feedback: "환불 관리 화면으로 이동할게요.",
-    actions: [{ type: "NAVIGATE", actionKey: "navigate_refund_manage", payload: { route: "/admin/refunds" } }],
+    actions: [
+      {
+        type: "NAVIGATE",
+        actionKey: "navigate_refund_manage",
+        payload: { route: "/admin/refunds" },
+      },
+    ],
   },
 ];
 
@@ -219,7 +261,9 @@ function setDashboardTarget(page) {
     // ignore storage failures
   }
   if (typeof window !== "undefined") {
-    window.dispatchEvent(new CustomEvent(DASHBOARD_TARGET_EVENT, { detail: { page } }));
+    window.dispatchEvent(
+      new CustomEvent(DASHBOARD_TARGET_EVENT, { detail: { page } }),
+    );
   }
 }
 
@@ -268,18 +312,24 @@ function resolveActionKey(action) {
   if (action?.payload?.actionKey) return action.payload.actionKey;
   if (action?.actionKey) return action.actionKey;
   if (action?.type === "PREFILL_FORM") {
-    return action?.payload?.formType === "notice" ? "prefill_notice_form" : "prefill_notification_form";
+    return action?.payload?.formType === "notice"
+      ? "prefill_notice_form"
+      : "prefill_notification_form";
   }
   if (action?.type === "NAVIGATE") {
     const route = action?.payload?.route || "";
     if (route.startsWith("/admin/dashboard")) return "navigate_dashboard";
-    if (route.startsWith("/admin/board/notice")) return "navigate_notice_manage";
-    if (route.startsWith("/admin/participant/alert")) return "navigate_notification_manage";
+    if (route.startsWith("/admin/board/notice"))
+      return "navigate_notice_manage";
+    if (route.startsWith("/admin/participant/alert"))
+      return "navigate_notification_manage";
     if (route.startsWith("/admin/event")) return "navigate_event_manage";
     if (route.startsWith("/admin/refunds")) return "navigate_refund_manage";
   }
   if (action?.type === "SHOW_SUMMARY") {
-    return action?.payload?.summaryType === "capabilities" ? "capabilities_get" : "summary_get";
+    return action?.payload?.summaryType === "capabilities"
+      ? "capabilities_get"
+      : "summary_get";
   }
   return null;
 }
@@ -299,7 +349,9 @@ async function requestChat({ history, userMessage, context, confirmation }) {
   const url = buildRequestUrl(API_BASE_URL, "/api/admin/chatbot/chat");
   const token = localStorage.getItem(TOKEN_KEY);
   if (!token) {
-    const error = new Error("로그인이 필요해요. 관리자 계정으로 다시 로그인해 주세요.");
+    const error = new Error(
+      "로그인이 필요해요. 관리자 계정으로 다시 로그인해 주세요.",
+    );
     error.messageType = "unauthorized";
     error.status = 401;
     throw error;
@@ -324,7 +376,9 @@ async function requestChat({ history, userMessage, context, confirmation }) {
       }),
     });
   } catch {
-    throw new Error("지금은 누리와 연결되지 않았어요. 잠시 후 다시 시도해 주세요.");
+    throw new Error(
+      "지금은 누리와 연결되지 않았어요. 잠시 후 다시 시도해 주세요.",
+    );
   }
 
   const rawText = await response.text();
@@ -332,7 +386,9 @@ async function requestChat({ history, userMessage, context, confirmation }) {
   try {
     payload = JSON.parse(rawText);
   } catch {
-    throw new Error(`응답을 읽지 못했어요. 잠시 후 다시 시도해 주세요. (${rawText.slice(0, 120)})`);
+    throw new Error(
+      `응답을 읽지 못했어요. 잠시 후 다시 시도해 주세요. (${rawText.slice(0, 120)})`,
+    );
   }
 
   if (!response.ok || payload?.success === false) {
@@ -340,7 +396,8 @@ async function requestChat({ history, userMessage, context, confirmation }) {
     error.messageType = payload?.data?.messageType || "error";
     error.status = response.status;
     if (response.status === 401) {
-      error.message = "로그인이 필요해요. 관리자 계정으로 다시 로그인해 주세요.";
+      error.message =
+        "로그인이 필요해요. 관리자 계정으로 다시 로그인해 주세요.";
       error.messageType = "unauthorized";
     } else if (response.status === 403) {
       error.message = "관리자 권한이 필요해요. 권한을 다시 확인해 주세요.";
@@ -352,14 +409,26 @@ async function requestChat({ history, userMessage, context, confirmation }) {
     throw error;
   }
 
-  return payload?.data || { message: "응답을 받지 못했어요.", messageType: "default", actions: [] };
+  return (
+    payload?.data || {
+      message: "응답을 받지 못했어요.",
+      messageType: "default",
+      actions: [],
+    }
+  );
 }
 
 function enrichBotMessage(baseMessage, response) {
   const actions = normalizeActions(response?.actions);
-  const summaryAction = actions.find((action) => action?.type === "SHOW_SUMMARY");
-  const confirmAction = actions.find((action) => action?.type === "CONFIRM_EXECUTE");
-  const prefillAction = actions.find((action) => action?.type === "PREFILL_FORM");
+  const summaryAction = actions.find(
+    (action) => action?.type === "SHOW_SUMMARY",
+  );
+  const confirmAction = actions.find(
+    (action) => action?.type === "CONFIRM_EXECUTE",
+  );
+  const prefillAction = actions.find(
+    (action) => action?.type === "PREFILL_FORM",
+  );
 
   return {
     ...baseMessage,
@@ -383,8 +452,12 @@ export function useChatBot() {
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
-  const [noticeDraft, setNoticeDraft] = useState(() => readJsonStorage(NOTICE_DRAFT_KEY));
-  const [notificationDraft, setNotificationDraft] = useState(() => readJsonStorage(NOTIFICATION_DRAFT_KEY));
+  const [noticeDraft, setNoticeDraft] = useState(() =>
+    readJsonStorage(NOTICE_DRAFT_KEY),
+  );
+  const [notificationDraft, setNotificationDraft] = useState(() =>
+    readJsonStorage(NOTIFICATION_DRAFT_KEY),
+  );
   const [pendingConfirmation, setPendingConfirmation] = useState(null);
   const idRef = useRef(2);
 
@@ -404,7 +477,10 @@ export function useChatBot() {
     window.addEventListener(NOTIFICATION_SYNC_EVENT, syncNotificationDraft);
     return () => {
       window.removeEventListener(NOTICE_SYNC_EVENT, syncNoticeDraft);
-      window.removeEventListener(NOTIFICATION_SYNC_EVENT, syncNotificationDraft);
+      window.removeEventListener(
+        NOTIFICATION_SYNC_EVENT,
+        syncNotificationDraft,
+      );
     };
   }, []);
 
@@ -414,7 +490,8 @@ export function useChatBot() {
       route: location.pathname,
       noticeDraft: noticeDraft?.formData || noticeDraft || null,
       noticeExecution: noticeDraft?.execution || null,
-      notificationDraft: notificationDraft?.formData || notificationDraft || null,
+      notificationDraft:
+        notificationDraft?.formData || notificationDraft || null,
       notificationExecution: notificationDraft?.execution || null,
     }),
     [location.pathname, noticeDraft, notificationDraft],
@@ -453,28 +530,42 @@ export function useChatBot() {
             const storedPayload = {
               formData: action?.payload?.formData || {},
               execution: action?.payload?.execution
-                ? { ...action.payload.execution, actionKey: action.payload.actionKey }
+                ? {
+                    ...action.payload.execution,
+                    actionKey: action.payload.actionKey,
+                  }
                 : null,
             };
             writeJsonStorage(NOTICE_DRAFT_KEY, storedPayload);
             setNoticeDraft(storedPayload);
             setDashboardTarget(action?.payload?.page || "notice");
             navigate(ADMIN_DASHBOARD_ROUTE);
-            window.dispatchEvent(new CustomEvent("pupoo-admin-chatbot-prefill-notice", { detail: storedPayload }));
+            window.dispatchEvent(
+              new CustomEvent("pupoo-admin-chatbot-prefill-notice", {
+                detail: storedPayload,
+              }),
+            );
             break;
           }
           case "prefill_notification_form": {
             const storedPayload = {
               formData: action?.payload?.formData || {},
               execution: action?.payload?.execution
-                ? { ...action.payload.execution, actionKey: action.payload.actionKey }
+                ? {
+                    ...action.payload.execution,
+                    actionKey: action.payload.actionKey,
+                  }
                 : null,
             };
             writeJsonStorage(NOTIFICATION_DRAFT_KEY, storedPayload);
             setNotificationDraft(storedPayload);
             setDashboardTarget(action?.payload?.page || "alertManage");
             navigate(ADMIN_DASHBOARD_ROUTE);
-            window.dispatchEvent(new CustomEvent("pupoo-admin-chatbot-prefill-notification", { detail: storedPayload }));
+            window.dispatchEvent(
+              new CustomEvent("pupoo-admin-chatbot-prefill-notification", {
+                detail: storedPayload,
+              }),
+            );
             break;
           }
           case "notice_create":
@@ -489,7 +580,8 @@ export function useChatBot() {
             setPendingConfirmation(action.payload || null);
             break;
           default:
-            if (action?.type === "NAVIGATE" && action?.payload?.route) navigate(action.payload.route);
+            if (action?.type === "NAVIGATE" && action?.payload?.route)
+              navigate(action.payload.route);
             break;
         }
       });
@@ -524,14 +616,25 @@ export function useChatBot() {
         applyActions(response.actions || []);
         setMessages((prev) => [
           ...prev,
-          enrichBotMessage(createBotMessage(idRef.current++, response.message || "응답을 받지 못했어요."), response),
+          enrichBotMessage(
+            createBotMessage(
+              idRef.current++,
+              response.message || "응답을 받지 못했어요.",
+            ),
+            response,
+          ),
         ]);
       } catch (error) {
         setMessages((prev) => [
           ...prev,
-          createBotMessage(idRef.current++, error?.message || "일시적인 오류가 있었어요. 잠시 후 다시 시도해 주세요.", {
-            messageType: error?.messageType || "error",
-          }),
+          createBotMessage(
+            idRef.current++,
+            error?.message ||
+              "일시적인 오류가 있었어요. 잠시 후 다시 시도해 주세요.",
+            {
+              messageType: error?.messageType || "error",
+            },
+          ),
         ]);
       } finally {
         setIsTyping(false);
@@ -553,7 +656,10 @@ export function useChatBot() {
         ]);
         setMessages((prev) => [
           ...prev,
-          createBotMessage(idRef.current++, "환불 관리 화면으로 바로 안내해드릴게요."),
+          createBotMessage(
+            idRef.current++,
+            "환불 관리 화면으로 바로 안내해드릴게요.",
+          ),
         ]);
         return;
       }
@@ -564,7 +670,10 @@ export function useChatBot() {
 
       applyActions(item.actions || []);
       if (item.feedback) {
-        setMessages((prev) => [...prev, createBotMessage(idRef.current++, item.feedback)]);
+        setMessages((prev) => [
+          ...prev,
+          createBotMessage(idRef.current++, item.feedback),
+        ]);
       }
     },
     [applyActions, sendMessage],
@@ -595,24 +704,46 @@ export function useChatBot() {
       applyActions(response.actions || []);
       setMessages((prev) => [
         ...prev,
-        enrichBotMessage(createBotMessage(idRef.current++, response.message || "처리를 마쳤어요."), response),
+        enrichBotMessage(
+          createBotMessage(
+            idRef.current++,
+            response.message || "처리를 마쳤어요.",
+          ),
+          response,
+        ),
       ]);
     } catch (error) {
       setMessages((prev) => [
         ...prev,
-        createBotMessage(idRef.current++, error?.message || "실행 중에 문제가 있었어요.", {
-          messageType: error?.messageType || "error",
-        }),
+        createBotMessage(
+          idRef.current++,
+          error?.message || "실행 중에 문제가 있었어요.",
+          {
+            messageType: error?.messageType || "error",
+          },
+        ),
       ]);
     } finally {
       setIsTyping(false);
       setIsConfirming(false);
     }
-  }, [applyActions, currentContext, isConfirming, isTyping, messages, pendingConfirmation]);
+  }, [
+    applyActions,
+    currentContext,
+    isConfirming,
+    isTyping,
+    messages,
+    pendingConfirmation,
+  ]);
 
   const clearMessages = useCallback(() => {
     setPendingConfirmation(null);
-    setMessages([createBotMessage(idRef.current++, "대화를 다시 시작할게요. 필요한 작업을 말씀해 주세요 🐾")]);
+    setMessages([
+      createBotMessage(
+        idRef.current++,
+        "대화를 다시 시작할게요. 필요한 작업을 말씀해 주세요 🐾",
+      ),
+    ]);
   }, []);
 
   return {

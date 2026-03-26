@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import PageLoading from "../components/PageLoading";
@@ -40,11 +40,6 @@ function fmtDate(dt) {
   if (!dt) return "-";
   const d = new Date(dt);
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function toTimestamp(value) {
-  const time = Date.parse(String(value || ""));
-  return Number.isFinite(time) ? time : 0;
 }
 
 function hasAnswer(item) {
@@ -406,6 +401,8 @@ export default function ServicePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const PAGE_SIZE = 10;
 
   const [writeModal, setWriteModal] = useState(null); // null | { } | { item }
@@ -419,80 +416,38 @@ export default function ServicePage() {
   };
 
   /* fetch question list */
-  const fetchList = useCallback(async () => {
+  const fetchList = useCallback(async (requestedPage = 1) => {
     setLoading(true);
     setError(null);
     try {
-      const fetchSize = 100;
-      const firstRes = await qnaApi.list(1, fetchSize);
-      const firstData = unwrap(firstRes) || {};
-      const rows = Array.isArray(firstData.content) ? [...firstData.content] : [];
-      const lastPage = Math.max(1, Number(firstData.totalPages) || 1);
-
-      if (lastPage > 1) {
-        const rest = await Promise.all(
-          Array.from({ length: lastPage - 1 }, (_, index) =>
-            qnaApi.list(index + 2, fetchSize),
-          ),
-        );
-
-        rest.forEach((response) => {
-          const data = unwrap(response) || {};
-          const content = Array.isArray(data.content) ? data.content : [];
-          rows.push(...content);
-        });
-      }
-
-      setItems(rows);
+      const statusFilter =
+        filter === "답변완료" ? "ANSWERED" : filter === "미답변" ? "UNANSWERED" : undefined;
+      const response = await qnaApi.list(requestedPage, PAGE_SIZE, {
+        statusFilter,
+        keyword: search.trim(),
+        sortKey,
+      });
+      const data = unwrap(response) || {};
+      setItems(Array.isArray(data.content) ? data.content : []);
+      setTotalElements(Number(data.totalElements) || 0);
+      setTotalPages(Math.max(1, Number(data.totalPages) || 1));
     } catch (err) {
       console.error("[QnA] fetch error:", err);
       setError("질문 목록을 불러오지 못했습니다.");
       setItems([]);
+      setTotalElements(0);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filter, search, sortKey]);
 
   useEffect(() => {
-    fetchList();
-  }, [fetchList]);
+    fetchList(page);
+  }, [fetchList, page]);
 
-  /* filtering */
-  const filtered = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
-    return items.filter((q) => {
-      const statusLabel = hasAnswer(q)
-        ? "답변완료"
-        : "미답변";
-      const matchFilter = filter === "전체" || filter === statusLabel;
-      const matchSearch =
-        !keyword ||
-        String(q?.title || "").toLowerCase().includes(keyword) ||
-        String(q?.content || "").toLowerCase().includes(keyword) ||
-        String(q?.answerContent || "").toLowerCase().includes(keyword);
-      return matchFilter && matchSearch;
-    });
-  }, [filter, items, search]);
-
-  const sortedItems = useMemo(() => {
-    const rows = [...filtered];
-    rows.sort((a, b) => {
-      if (sortKey === "views") {
-        const diff = Number(b?.viewCount || 0) - Number(a?.viewCount || 0);
-        if (diff !== 0) return diff;
-      }
-      return toTimestamp(b?.createdAt) - toTimestamp(a?.createdAt);
-    });
-    return rows;
-  }, [filtered, sortKey]);
-
-  const totalElements = sortedItems.length;
-  const totalPages = Math.max(1, Math.ceil(totalElements / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
-  const pagedItems = useMemo(
-    () => sortedItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
-    [currentPage, sortedItems],
-  );
+  const pagedItems = items;
 
   useEffect(() => {
     setPage(1);
@@ -527,7 +482,11 @@ export default function ServicePage() {
       const res = await qnaApi.create(form);
       setWriteModal(null);
       showToast("질문이 등록되었습니다.");
-      fetchList();
+      if (page === 1) {
+        fetchList(1);
+      } else {
+        setPage(1);
+      }
     } catch (err) {
       console.error("[QnA] create error:", err);
       showToast("등록에 실패했습니다.", "error");
@@ -543,7 +502,11 @@ export default function ServicePage() {
       await qnaApi.update(writeModal.item.qnaId, form);
       setWriteModal(null);
       showToast("질문이 수정되었습니다.");
-      fetchList();
+      if (page === 1) {
+        fetchList(1);
+      } else {
+        setPage(1);
+      }
     } catch (err) {
       console.error("[QnA] update error:", err);
       showToast("수정에 실패했습니다.", "error");
@@ -559,7 +522,11 @@ export default function ServicePage() {
       await qnaApi.delete(deleteModal.qnaId);
       setDeleteModal(null);
       showToast("질문이 삭제되었습니다.");
-      fetchList();
+      if (page === 1) {
+        fetchList(1);
+      } else {
+        setPage(1);
+      }
     } catch (err) {
       console.error("[QnA] delete error:", err);
       setDeleteModal(null);

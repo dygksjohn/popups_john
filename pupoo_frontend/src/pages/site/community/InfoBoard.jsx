@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import PageLoading from "../components/PageLoading";
@@ -46,11 +46,6 @@ function fmtDate(dt) {
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(
     d.getDate(),
   ).padStart(2, "0")}`;
-}
-
-function toTimestamp(value) {
-  const ts = Date.parse(String(value || ""));
-  return Number.isFinite(ts) ? ts : 0;
 }
 
 function Overlay({ children, onClose }) {
@@ -552,7 +547,9 @@ export default function InfoBoard() {
     typeof window === "undefined" ? 1440 : window.innerWidth,
   );
 
-  const [allItems, setAllItems] = useState([]);
+  const [items, setItems] = useState([]);
+  const [totalElements, setTotalElements] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
@@ -578,40 +575,36 @@ export default function InfoBoard() {
     return body?.error?.message || body?.message || body?.errorMessage || fallbackMessage;
   }, []);
 
-  const fetchAll = useCallback(async () => {
+  const fetchBoardPage = useCallback(async (requestedPage = 1) => {
     setLoading(true);
     setError(null);
     try {
-      const rows = [];
-      let pageIndex = 0;
-      let finished = false;
-
-      while (!finished && pageIndex < 20) {
-        const d = await postApi.listByBoardType("INFO", {
-          page: pageIndex,
-          size: 50,
-          sort: "createdAt,desc",
-        });
-        const content = Array.isArray(d?.content) ? d.content : [];
-        rows.push(...content);
-        const totalPages = Number(d?.totalPages) || 0;
-        finished = Boolean(d?.last) || totalPages === 0 || pageIndex + 1 >= totalPages;
-        pageIndex += 1;
-      }
-
-      setAllItems(rows);
-      setPage(1);
+      const apiPage = Math.max(0, (Number(requestedPage) || 1) - 1);
+      const d = await postApi.listByBoardType("INFO", {
+        page: apiPage,
+        size: PAGE_SIZE,
+        searchType: "TITLE_CONTENT",
+        keyword: search.trim(),
+        sortKey,
+      });
+      const content = Array.isArray(d?.content) ? d.content : [];
+      setItems(content);
+      setTotalElements(Number(d?.totalElements) || 0);
+      setTotalPages(Math.max(1, Number(d?.totalPages) || 1));
     } catch (e) {
       console.error("[InfoBoard] list fetch failed:", e);
       setError("정보게시판 목록을 불러오지 못했습니다.");
+      setItems([]);
+      setTotalElements(0);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [search, sortKey]);
 
   useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
+    fetchBoardPage(page);
+  }, [page, fetchBoardPage]);
 
   useEffect(() => {
     let mounted = true;
@@ -633,39 +626,8 @@ export default function InfoBoard() {
     };
   }, []);
 
-  const filteredItems = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return allItems;
-    return allItems.filter((item) => {
-      const title = String(item?.postTitle || "").toLowerCase();
-      const content = String(item?.content || "").toLowerCase();
-      return title.includes(q) || content.includes(q);
-    });
-  }, [allItems, search]);
-
-  const sortedItems = useMemo(() => {
-    const rows = [...filteredItems];
-    rows.sort((a, b) => {
-      if (sortKey === "views") {
-        const diff = (b?.viewCount ?? 0) - (a?.viewCount ?? 0);
-        if (diff !== 0) return diff;
-      } else if (sortKey === "comments") {
-        const diff =
-          Number(b?.commentCount ?? 0) - Number(a?.commentCount ?? 0);
-        if (diff !== 0) return diff;
-      }
-      return toTimestamp(b?.createdAt) - toTimestamp(a?.createdAt);
-    });
-    return rows;
-  }, [filteredItems, sortKey]);
-
-  const totalElements = sortedItems.length;
-  const totalPages = Math.max(1, Math.ceil(totalElements / PAGE_SIZE));
-  const pageSafe = Math.min(page, totalPages);
-  const pagedItems = sortedItems.slice(
-    (pageSafe - 1) * PAGE_SIZE,
-    pageSafe * PAGE_SIZE,
-  );
+  const currentPage = Math.min(page, totalPages);
+  const pagedItems = items;
 
   useEffect(() => {
     setPage(1);
@@ -721,7 +683,7 @@ export default function InfoBoard() {
     try {
       const detail = await postApi.get(item.postId);
       setSelected(detail);
-      setAllItems((prev) =>
+      setItems((prev) =>
         prev.map((row) => (row.postId === detail.postId ? { ...row, ...detail } : row)),
       );
       await Promise.all([loadReplies(detail.postId), loadAttachment(detail.postId)]);
@@ -800,7 +762,11 @@ export default function InfoBoard() {
       });
       setWriteModeration(normalizedModeration);
       setWriteModalOpen(false);
-      await fetchAll();
+      if (page === 1) {
+        await fetchBoardPage(1);
+      } else {
+        setPage(1);
+      }
     } catch (err) {
       console.error("[InfoBoard] create failed:", err);
       console.debug("[InfoBoard] moderation error payload:", {
@@ -1001,7 +967,7 @@ export default function InfoBoard() {
                 <span style={{ width: 80, textAlign: "center", flexShrink: 0 }}>조회수</span>
               </div>
               {pagedItems.map((item, index) => {
-                const rowNumber = totalElements - ((pageSafe - 1) * PAGE_SIZE) - index;
+                const rowNumber = totalElements - ((currentPage - 1) * PAGE_SIZE) - index;
                 const authorLabel = item?.author || item?.nickname || item?.userName || "관리자";
                 return (
                   <div
@@ -1064,7 +1030,7 @@ export default function InfoBoard() {
             </div>
 
             <CommunityPagination
-              currentPage={pageSafe}
+              currentPage={currentPage}
               totalPages={totalPages}
               onChange={setPage}
             />
