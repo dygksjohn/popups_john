@@ -202,7 +202,7 @@ jobs:
 
       - name: Set up Python 3.12 for AI training
         if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_train == 'true'
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 

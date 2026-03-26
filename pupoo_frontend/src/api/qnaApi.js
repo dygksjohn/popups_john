@@ -20,9 +20,15 @@ export function unwrap(res) {
 // ✅ headers를 수동으로 넣지 않음 → interceptors.js가
 //    tokenStore의 사용자 토큰을 자동으로 Authorization에 붙여줌
 export const qnaApi = {
-  list: (uiPage = 1, size = 10) =>
+  list: (uiPage = 1, size = 10, opts = {}) =>
     axiosInstance.get("/api/qnas", {
-      params: { page: uiPage - 1, size },
+      params: {
+        page: uiPage - 1,
+        size,
+        ...(opts?.statusFilter ? { statusFilter: opts.statusFilter } : {}),
+        ...(opts?.keyword ? { keyword: opts.keyword } : {}),
+        ...(opts?.sortKey ? { sortKey: opts.sortKey } : {}),
+      },
     }),
 
   get: (qnaId) => axiosInstance.get(`/api/qnas/${qnaId}`),
@@ -48,9 +54,13 @@ export const qnaApi = {
 /* ── 관리자용 (BoardManage) ── */
 // ✅ 관리자 전용 토큰(pupoo_admin_token)을 명시적으로 사용
 export const adminQnaApi = {
-  list: (uiPage = 1, size = 20) =>
+  list: (uiPage = 1, size = 20, opts = {}) =>
     axiosInstance.get("/api/qnas", {
-      params: { page: uiPage - 1, size },
+      params: {
+        page: uiPage - 1,
+        size,
+        ...(opts?.keyword ? { keyword: opts.keyword } : {}),
+      },
       headers: adminAuthHeaders(),
     }),
 

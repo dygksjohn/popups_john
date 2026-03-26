@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronDown, ChevronLeft, ChevronRight, HelpCircle, Loader2, Search, SlidersHorizontal } from "lucide-react";
 import PageHeader from "../components/PageHeader";
@@ -10,7 +10,6 @@ import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
 import BadgeTag from "./shared/BadgeTag";
 
 const PAGE_SIZE = 10;
-const FETCH_SIZE = 100;
 const SORT_OPTIONS = [
   { key: "recent", label: "최신순" },
   { key: "views", label: "조회순" },
@@ -21,11 +20,6 @@ function fmtDate(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
   return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")}`;
-}
-
-function toTimestamp(value) {
-  const time = Date.parse(String(value || ""));
-  return Number.isFinite(time) ? time : 0;
 }
 
 export default function CommunityFaq() {
@@ -39,78 +33,46 @@ export default function CommunityFaq() {
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const sortDdRef = useRef(null);
   const [items, setItems] = useState([]);
+  const [totalElements, setTotalElements] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
 
-  const fetchFaqs = useCallback(async () => {
+  const fetchFaqs = useCallback(async (requestedPage = 1) => {
     setLoading(true);
     setError("");
     try {
-      const firstRes = await axiosInstance.get("/api/faqs", {
-        params: { page: 0, size: FETCH_SIZE, sort: "createdAt,desc" },
+      const response = await axiosInstance.get("/api/faqs", {
+        params: {
+          page: Math.max(0, (Number(requestedPage) || 1) - 1),
+          size: PAGE_SIZE,
+          searchType: "TITLE_CONTENT",
+          keyword: search.trim(),
+          sort: sortKey === "views" ? "viewCount,desc" : "createdAt,desc",
+        },
       });
-      const firstData = firstRes.data?.data || firstRes.data || {};
-      const rows = Array.isArray(firstData.content) ? [...firstData.content] : [];
-      const totalPages = Math.max(1, Number(firstData.totalPages) || 1);
-
-      if (totalPages > 1) {
-        const rest = await Promise.all(
-          Array.from({ length: totalPages - 1 }, (_, index) =>
-            axiosInstance.get("/api/faqs", {
-              params: { page: index + 1, size: FETCH_SIZE, sort: "createdAt,desc" },
-            }),
-          ),
-        );
-
-        rest.forEach((response) => {
-          const data = response.data?.data || response.data || {};
-          const content = Array.isArray(data.content) ? data.content : [];
-          rows.push(...content);
-        });
-      }
-
-      setItems(rows);
+      const data = response.data?.data || response.data || {};
+      setItems(Array.isArray(data.content) ? data.content : []);
+      setTotalElements(Number(data.totalElements) || 0);
+      setTotalPages(Math.max(1, Number(data.totalPages) || 1));
     } catch (err) {
       console.error("[Community FAQ] list fetch failed:", err);
       setError("FAQ 목록을 불러오지 못했습니다.");
       setItems([]);
+      setTotalElements(0);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [search, sortKey]);
 
   useEffect(() => {
-    fetchFaqs();
-  }, [fetchFaqs]);
+    fetchFaqs(page);
+  }, [fetchFaqs, page]);
 
-  const filteredItems = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
-    if (!keyword) return items;
-    return items.filter((item) =>
-      String(item?.title || "").toLowerCase().includes(keyword),
-    );
-  }, [items, search]);
-
-  const sortedItems = useMemo(() => {
-    const rows = [...filteredItems];
-    rows.sort((a, b) => {
-      if (sortKey === "views") {
-        const diff = Number(b?.viewCount || 0) - Number(a?.viewCount || 0);
-        if (diff !== 0) return diff;
-      }
-      return toTimestamp(b?.createdAt) - toTimestamp(a?.createdAt);
-    });
-    return rows;
-  }, [filteredItems, sortKey]);
-
-  const totalElements = sortedItems.length;
-  const totalPages = Math.max(1, Math.ceil(totalElements / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
-  const pagedItems = useMemo(
-    () => sortedItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
-    [currentPage, sortedItems],
-  );
+  const pagedItems = items;
 
   useEffect(() => {
     setPage(1);

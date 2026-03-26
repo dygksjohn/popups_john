@@ -1688,8 +1688,14 @@ export default function BoardManage({ subTab = "free" }) {
   const [boardLoading, setBoardLoading] = useState(false);
   const [freeBoardId, setFreeBoardId] = useState(null);
   const [infoBoardId, setInfoBoardId] = useState(null);
+  const [boardPage, setBoardPage] = useState(1);
+  const [boardTotalPages, setBoardTotalPages] = useState(0);
+  const [boardTotalElements, setBoardTotalElements] = useState(0);
   const [eventList, setEventList] = useState([]);
   const eventListRef = useRef([]);
+  const [search, setSearch] = useState("");
+  const trimmedSearch = search.trim();
+  const BOARD_PAGE_SIZE = 20;
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -1719,9 +1725,11 @@ export default function BoardManage({ subTab = "free" }) {
 
   /* ── 자유게시판/정보게시판/후기/FAQ API 로드 ── */
   const fetchBoardData = useCallback(
-    async (type) => {
+    async (type, requestedPage = 1) => {
       setBoardLoading(true);
       try {
+        const targetPage = Math.max(1, Number(requestedPage) || 1);
+        const pageParam = targetPage - 1;
         if (type === "free" || type === "info") {
           const boardTypeCode = type === "info" ? "INFO" : "FREE";
           let bId = type === "info" ? infoBoardId : freeBoardId;
@@ -1745,11 +1753,14 @@ export default function BoardManage({ subTab = "free" }) {
           }
 
           const res = await axiosInstance.get(
-            `/api/posts?boardType=${boardTypeCode}&page=0&size=200`,
+            `/api/posts?boardType=${boardTypeCode}&page=${pageParam}&size=${BOARD_PAGE_SIZE}&searchType=TITLE_CONTENT&keyword=${encodeURIComponent(trimmedSearch)}`,
             { headers: authHeaders() },
           );
           const page = res.data?.data || res.data || {};
           const list = page.content || page || [];
+          setBoardPage((page.number ?? pageParam) + 1);
+          setBoardTotalPages(page.totalPages ?? 0);
+          setBoardTotalElements(page.totalElements ?? list.length);
           setLocalData((prev) => ({
             ...prev,
             [type]: list.map((p) => ({
@@ -1767,11 +1778,17 @@ export default function BoardManage({ subTab = "free" }) {
             })),
           }));
         } else if (type === "review") {
-          const res = await axiosInstance.get("/api/reviews?page=0&size=100", {
-            headers: authHeaders(),
-          });
+          const res = await axiosInstance.get(
+            `/api/reviews?page=${pageParam}&size=${BOARD_PAGE_SIZE}&searchType=TITLE_CONTENT&keyword=${encodeURIComponent(trimmedSearch)}`,
+            {
+              headers: authHeaders(),
+            },
+          );
           const page = res.data?.data || res.data || {};
           const list = page.content || page || [];
+          setBoardPage((page.number ?? pageParam) + 1);
+          setBoardTotalPages(page.totalPages ?? 0);
+          setBoardTotalElements(page.totalElements ?? list.length);
           const evMap = {};
           eventListRef.current.forEach((ev) => {
             evMap[ev.eventId] = ev.name;
@@ -1794,11 +1811,17 @@ export default function BoardManage({ subTab = "free" }) {
             })),
           }));
         } else if (type === "faq") {
-          const listRes = await axiosInstance.get("/api/faqs?page=0&size=200", {
-            headers: authHeaders(),
-          });
+          const listRes = await axiosInstance.get(
+            `/api/faqs?page=${pageParam}&size=${BOARD_PAGE_SIZE}&searchType=TITLE_CONTENT&keyword=${encodeURIComponent(trimmedSearch)}`,
+            {
+              headers: authHeaders(),
+            },
+          );
           const page = listRes.data?.data || listRes.data || {};
           const list = Array.isArray(page.content) ? page.content : [];
+          setBoardPage((page.number ?? pageParam) + 1);
+          setBoardTotalPages(page.totalPages ?? 0);
+          setBoardTotalElements(page.totalElements ?? list.length);
 
           const detailedFaqs = await Promise.all(
             list.map(async (faq) => {
@@ -1831,6 +1854,9 @@ export default function BoardManage({ subTab = "free" }) {
         }
       } catch (err) {
         devError(`[BoardManage] ${type} 로드 실패:`, err);
+        setBoardPage(1);
+        setBoardTotalPages(0);
+        setBoardTotalElements(0);
         // 운영 경로에서는 실패 시 빈 목록으로 유지한다.
         if (type === "free")
           setLocalData((prev) => ({
@@ -1856,7 +1882,7 @@ export default function BoardManage({ subTab = "free" }) {
         setBoardLoading(false);
       }
     },
-    [freeBoardId, infoBoardId],
+    [freeBoardId, infoBoardId, BOARD_PAGE_SIZE, trimmedSearch],
   );
 
   /* ── Q&A API 상태 ── */
@@ -1866,16 +1892,13 @@ export default function BoardManage({ subTab = "free" }) {
   const [qnaPage, setQnaPage] = useState(1);
   const [qnaTotalPages, setQnaTotalPages] = useState(0);
   const [qnaTotalElements, setQnaTotalElements] = useState(0);
-  const [mobilePage, setMobilePage] = useState(1);
   const QNA_PAGE_SIZE = 20;
-  const MOBILE_PAGE_SIZE = 6;
 
   /* ── 공통 UI 상태 ── */
   const [modal, setModal] = useState(null);
   const [panel, setPanel] = useState(null);
   const [toast, setToast] = useState(null);
   const [removing, setRemoving] = useState(null);
-  const [search, setSearch] = useState("");
   const [selected, setSelected] = useState(new Set());
   const [saving, setSaving] = useState(false);
 
@@ -1884,7 +1907,9 @@ export default function BoardManage({ subTab = "free" }) {
     setQnaLoading(true);
     setQnaError(null);
     try {
-      const res = await adminQnaApi.list(page, QNA_PAGE_SIZE);
+      const res = await adminQnaApi.list(page, QNA_PAGE_SIZE, {
+        keyword: trimmedSearch,
+      });
       const d = unwrap(res);
       const mapped = (d.content || []).map(mapQnaFromApi);
       setQnaItems(mapped);
@@ -1897,44 +1922,54 @@ export default function BoardManage({ subTab = "free" }) {
     } finally {
       setQnaLoading(false);
     }
-  }, []);
+  }, [trimmedSearch]);
 
   /* ── boardType이 전환되면 API 호출 ── */
   useEffect(() => {
     setSearch("");
     setModal(null);
     setPanel(null);
+    setSelected(new Set());
+    setBoardPage(1);
+    setBoardTotalPages(0);
+    setBoardTotalElements(0);
     if (isQna) {
       fetchQnaList(1);
     } else if (boardType === "free") {
-      fetchBoardData("free");
+      fetchBoardData("free", 1);
     } else if (boardType === "info") {
-      fetchBoardData("info");
+      fetchBoardData("info", 1);
     } else if (boardType === "review") {
       // 행사 목록을 먼저 가져온 뒤 리뷰 로드 (행사명 매핑)
-      fetchEventList().then(() => fetchBoardData("review"));
+      fetchEventList().then(() => fetchBoardData("review", 1));
     } else if (boardType === "faq") {
-      fetchBoardData("faq");
+      fetchBoardData("faq", 1);
     }
   }, [boardType, isQna, fetchQnaList, fetchBoardData, fetchEventList]);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSelected(new Set());
+      if (isQna) {
+        fetchQnaList(1);
+      } else if (boardType === "review") {
+        fetchEventList().then(() => fetchBoardData("review", 1));
+      } else {
+        fetchBoardData(boardType, 1);
+      }
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [search, boardType, isQna, fetchQnaList, fetchBoardData, fetchEventList]);
+
   /* ── 현재 보여줄 아이템 ── */
   const items = isQna ? qnaItems : localData[boardType] || [];
-  const rows = items
-    .filter((e) => e._visible !== false)
-    .filter(
-      (e) => !search || e.title?.includes(search) || e.author?.includes(search),
-    );
-  const totalCount = isQna ? qnaTotalElements : rows.length;
+  const rows = items.filter((e) => e._visible !== false);
+  const totalCount = isQna ? qnaTotalElements : boardTotalElements;
   const isMobile = viewportWidth < 768;
-  const mobileTotalPages =
-    isMobile && !isQna ? Math.max(1, Math.ceil(rows.length / MOBILE_PAGE_SIZE)) : 1;
-  const mobilePageStart = (mobilePage - 1) * MOBILE_PAGE_SIZE;
-  const pagedRows =
-    isMobile && !isQna
-      ? rows.slice(mobilePageStart, mobilePageStart + MOBILE_PAGE_SIZE)
-      : rows;
-  const interactiveRows = isMobile && !isQna ? pagedRows : rows;
+  const currentPage = isQna ? qnaPage : boardPage;
+  const currentTotalPages = isQna ? qnaTotalPages : boardTotalPages;
+  const pagedRows = rows;
+  const interactiveRows = rows;
 
   /* ── 선택 관련 ── */
   const getRowId = (r) => r.id;
@@ -1957,24 +1992,19 @@ export default function BoardManage({ subTab = "free" }) {
 
   const showToast = (msg, type = "success") => setToast({ msg, type });
 
-  useEffect(() => {
-    if (!isMobile || isQna) return undefined;
-    setMobilePage(1);
-    return undefined;
-  }, [boardType, search, isMobile, isQna]);
-
-  useEffect(() => {
-    if (!isMobile || isQna) return undefined;
-    const safeTotalPages = Math.max(1, Math.ceil(rows.length / MOBILE_PAGE_SIZE));
-    if (mobilePage > safeTotalPages) {
-      setMobilePage(safeTotalPages);
-    }
-    return undefined;
-  }, [rows.length, mobilePage, isMobile, isQna]);
-
   /* ── 로컬 게시판 setter ── */
   const setBoard = (fn) =>
     setLocalData((prev) => ({ ...prev, [boardType]: fn(prev[boardType]) }));
+
+  const handlePageChange = (nextPage) => {
+    if (nextPage < 1 || nextPage > currentTotalPages) return;
+    setSelected(new Set());
+    if (isQna) {
+      fetchQnaList(nextPage);
+      return;
+    }
+    fetchBoardData(boardType, nextPage);
+  };
 
   /* ════════════════════════════════════════
      CRUD 핸들러 — Q&A는 API, 나머지는 로컬
@@ -2063,7 +2093,7 @@ export default function BoardManage({ subTab = "free" }) {
         }
         setPanel(null);
         showToast(config.toastCreate);
-        fetchBoardData(boardType);
+        fetchBoardData(boardType, 1);
       } catch (err) {
         devError(`[BoardManage] ${boardType} create error:`, err);
         const status = err?.response?.status;
@@ -2131,7 +2161,7 @@ export default function BoardManage({ subTab = "free" }) {
         }
         setPanel(null);
         showToast(config.toastUpdate);
-        fetchBoardData(boardType);
+        fetchBoardData(boardType, boardPage);
       } catch (err) {
         devError(`[BoardManage] ${boardType} update error:`, err);
         showToast("수정에 실패했습니다.", "error");
@@ -2185,7 +2215,7 @@ export default function BoardManage({ subTab = "free" }) {
         setTimeout(() => {
           setRemoving(null);
           showToast(config.toastDelete);
-          fetchBoardData(boardType);
+          fetchBoardData(boardType, boardPage);
         }, 300);
       } catch (err) {
         devError(`[BoardManage] ${boardType} delete error:`, err);
@@ -2230,7 +2260,7 @@ export default function BoardManage({ subTab = "free" }) {
             data: { ids: postIds },
           });
         }
-        fetchBoardData(boardType);
+        fetchBoardData(boardType, boardPage);
       }
       setModal(null);
       setSelected(new Set());
@@ -2276,7 +2306,7 @@ export default function BoardManage({ subTab = "free" }) {
         );
         setModal(null);
         showToast("답변이 수정되었습니다.");
-        fetchBoardData("faq");
+        fetchBoardData("faq", boardPage);
       } catch (err) {
         devError("[BoardManage FAQ] reply update error:", err);
         showToast("답변 처리에 실패했습니다.", "error");
@@ -2589,14 +2619,11 @@ export default function BoardManage({ subTab = "free" }) {
           )}
       </div>
 
-      {isMobile && !isQna && rows.length > MOBILE_PAGE_SIZE && (
+      {!isQna && !boardLoading && currentTotalPages > 1 && (
         <MobilePagination
-          page={mobilePage}
-          totalPages={mobileTotalPages}
-          onChange={(nextPage) => {
-            if (nextPage < 1 || nextPage > mobileTotalPages) return;
-            setMobilePage(nextPage);
-          }}
+          page={boardPage}
+          totalPages={boardTotalPages}
+          onChange={handlePageChange}
         />
       )}
 
@@ -2606,10 +2633,7 @@ export default function BoardManage({ subTab = "free" }) {
           <MobilePagination
             page={qnaPage}
             totalPages={qnaTotalPages}
-            onChange={(nextPage) => {
-              if (nextPage < 1 || nextPage > qnaTotalPages) return;
-              fetchQnaList(nextPage);
-            }}
+            onChange={handlePageChange}
           />
         ) : (
         <div
@@ -2622,7 +2646,7 @@ export default function BoardManage({ subTab = "free" }) {
           }}
         >
           <button
-            onClick={() => fetchQnaList(qnaPage - 1)}
+            onClick={() => handlePageChange(qnaPage - 1)}
             disabled={qnaPage <= 1}
             style={{
               background: "none",
@@ -2638,7 +2662,7 @@ export default function BoardManage({ subTab = "free" }) {
           {Array.from({ length: qnaTotalPages }, (_, i) => (
             <button
               key={i}
-              onClick={() => fetchQnaList(i + 1)}
+              onClick={() => handlePageChange(i + 1)}
               style={{
                 fontSize: 14,
                 fontWeight: i + 1 === qnaPage ? 700 : 500,
@@ -2655,7 +2679,7 @@ export default function BoardManage({ subTab = "free" }) {
             </button>
           ))}
           <button
-            onClick={() => fetchQnaList(qnaPage + 1)}
+            onClick={() => handlePageChange(qnaPage + 1)}
             disabled={qnaPage >= qnaTotalPages}
             style={{
               background: "none",

@@ -98,7 +98,8 @@ function DogAvatar({ small = false }) {
         width: size,
         height: size,
         borderRadius: small ? 12 : 18,
-        background: "linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(255,244,238,0.98) 100%)",
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(255,244,238,0.98) 100%)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -142,7 +143,11 @@ function buildValidationActions(executionInfo, quickActionMap) {
   const actionKey = executionInfo?.actionKey || "";
   const missingFields = executionInfo?.missingFields || [];
 
-  if (actionKey.startsWith("notification") || missingFields.includes("targetScope") || missingFields.includes("eventId")) {
+  if (
+    actionKey.startsWith("notification") ||
+    missingFields.includes("targetScope") ||
+    missingFields.includes("eventId")
+  ) {
     return pickQuickActions(quickActionMap, [
       "start_broadcast_notification",
       "start_event_notification",
@@ -152,16 +157,25 @@ function buildValidationActions(executionInfo, quickActionMap) {
   }
 
   if (actionKey.startsWith("notice") || missingFields.includes("noticeId")) {
-    return pickQuickActions(quickActionMap, ["prefill_notice", "navigate_notice"]);
+    return pickQuickActions(quickActionMap, [
+      "prefill_notice",
+      "navigate_notice",
+    ]);
   }
 
-  return pickQuickActions(quickActionMap, ["summary_congestion", "prefill_notice"]);
+  return pickQuickActions(quickActionMap, [
+    "summary_congestion",
+    "prefill_notice",
+  ]);
 }
 
 function buildHintActions(messageType, message, quickActionMap) {
   const text = String(message?.text || "");
   if (messageType === "ambiguous" && text.includes("공지")) {
-    return pickQuickActions(quickActionMap, ["prefill_notice", "navigate_notice"]);
+    return pickQuickActions(quickActionMap, [
+      "prefill_notice",
+      "navigate_notice",
+    ]);
   }
   if (messageType === "ambiguous" && text.includes("알림")) {
     return pickQuickActions(quickActionMap, [
@@ -172,7 +186,11 @@ function buildHintActions(messageType, message, quickActionMap) {
     ]);
   }
   if (messageType === "low_confidence") {
-    return pickQuickActions(quickActionMap, ["summary_congestion", "summary_applicants", "navigate_notice"]);
+    return pickQuickActions(quickActionMap, [
+      "summary_congestion",
+      "summary_applicants",
+      "navigate_notice",
+    ]);
   }
   return [];
 }
@@ -222,14 +240,34 @@ function SummaryCard({ summary, mobile = false }) {
       }}
     >
       <div style={{ display: "grid", gap: 4 }}>
-        <div style={{ fontSize: 11.5, color: "#6B7280", fontWeight: 700 }}>{SUMMARY_LABELS[summary.summaryType] || "요약"}</div>
-        <div style={{ fontSize: 12.5, color: "#374151", lineHeight: 1.55 }}>지금 확인하실 수 있는 핵심 수치를 정리했어요.</div>
+        <div style={{ fontSize: 11.5, color: "#6B7280", fontWeight: 700 }}>
+          {SUMMARY_LABELS[summary.summaryType] || "요약"}
+        </div>
+        <div style={{ fontSize: 12.5, color: "#374151", lineHeight: 1.55 }}>
+          지금 확인하실 수 있는 핵심 수치를 정리했어요.
+        </div>
       </div>
       {summary?.items?.length ? (
-        <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: mobile ? "1fr" : "repeat(2, minmax(0, 1fr))",
+            gap: 8,
+          }}
+        >
           {summary.items.map((item) => (
-            <div key={`${summary.summaryType}-${item.label}`} style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 12, padding: "10px 12px" }}>
-              <div style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 4 }}>{item.label}</div>
+            <div
+              key={`${summary.summaryType}-${item.label}`}
+              style={{
+                background: "#F9FAFB",
+                border: "1px solid #E5E7EB",
+                borderRadius: 12,
+                padding: "10px 12px",
+              }}
+            >
+              <div style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 4 }}>
+                {item.label}
+              </div>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#1F2937" }}>
                 {item.value}
                 {item.meta != null ? ` / ${item.meta}` : ""}
@@ -240,13 +278,62 @@ function SummaryCard({ summary, mobile = false }) {
       ) : null}
       {summary?.sections?.length
         ? summary.sections.map((section) => (
-            <div key={section.key} style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 12, padding: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 8 }}>{section.title}</div>
-              <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+            <div
+              key={section.key}
+              style={{
+                background: "#F9FAFB",
+                border: "1px solid #E5E7EB",
+                borderRadius: 12,
+                padding: 12,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: "#374151",
+                  marginBottom: 8,
+                }}
+              >
+                {section.title}
+              </div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: mobile
+                    ? "1fr"
+                    : "repeat(2, minmax(0, 1fr))",
+                  gap: 8,
+                }}
+              >
                 {section.items.map((item) => (
-                  <div key={`${section.key}-${item.label}`} style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 10, padding: "10px 12px" }}>
-                    <div style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 4 }}>{item.label}</div>
-                    <div style={{ fontSize: 13.5, fontWeight: 700, color: "#1F2937" }}>{item.value}</div>
+                  <div
+                    key={`${section.key}-${item.label}`}
+                    style={{
+                      background: "#fff",
+                      border: "1px solid #E5E7EB",
+                      borderRadius: 10,
+                      padding: "10px 12px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: "#9CA3AF",
+                        marginBottom: 4,
+                      }}
+                    >
+                      {item.label}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 13.5,
+                        fontWeight: 700,
+                        color: "#1F2937",
+                      }}
+                    >
+                      {item.value}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -269,7 +356,16 @@ function UnsupportedCard({ executionInfo, mobile = false }) {
         border: "1px solid #FECACA",
       }}
     >
-      <div style={{ fontSize: 11.5, color: "#B91C1C", fontWeight: 700, marginBottom: 6 }}>지금은 사용할 수 없는 기능이에요</div>
+      <div
+        style={{
+          fontSize: 11.5,
+          color: "#B91C1C",
+          fontWeight: 700,
+          marginBottom: 6,
+        }}
+      >
+        지금은 사용할 수 없는 기능이에요
+      </div>
       <div style={{ fontSize: 12.5, color: "#7F1D1D", lineHeight: 1.55 }}>
         {executionInfo?.reason || "이 기능은 현재 지원되지 않아요."}
       </div>
@@ -277,9 +373,18 @@ function UnsupportedCard({ executionInfo, mobile = false }) {
   );
 }
 
-function ValidationCard({ message, executionInfo, quickActionMap, onSelectAction, mobile = false }) {
+function ValidationCard({
+  message,
+  executionInfo,
+  quickActionMap,
+  onSelectAction,
+  mobile = false,
+}) {
   const missingFields = executionInfo?.missingFields || [];
-  const suggestedActions = buildValidationActions(executionInfo, quickActionMap);
+  const suggestedActions = buildValidationActions(
+    executionInfo,
+    quickActionMap,
+  );
 
   return (
     <div
@@ -292,30 +397,61 @@ function ValidationCard({ message, executionInfo, quickActionMap, onSelectAction
         border: "1px solid #FED7AA",
       }}
     >
-      <div style={{ fontSize: 11.5, color: "#9A3412", fontWeight: 700, marginBottom: 6 }}>추가 정보가 필요해요</div>
-      <div style={{ fontSize: 12.5, color: "#9A3412", lineHeight: 1.55 }}>{executionInfo?.reason || message.text}</div>
+      <div
+        style={{
+          fontSize: 11.5,
+          color: "#9A3412",
+          fontWeight: 700,
+          marginBottom: 6,
+        }}
+      >
+        추가 정보가 필요해요
+      </div>
+      <div style={{ fontSize: 12.5, color: "#9A3412", lineHeight: 1.55 }}>
+        {executionInfo?.reason || message.text}
+      </div>
       {missingFields.length ? (
         <div style={{ marginTop: 8, display: "grid", gap: 4 }}>
-          <div style={{ fontSize: 11.5, color: "#C2410C" }}>필요한 값: {missingFields.map((field) => FIELD_LABELS[field] || field).join(", ")}</div>
+          <div style={{ fontSize: 11.5, color: "#C2410C" }}>
+            필요한 값:{" "}
+            {missingFields
+              .map((field) => FIELD_LABELS[field] || field)
+              .join(", ")}
+          </div>
           {missingFields.map((field) => (
-            <div key={field} style={{ fontSize: 11.5, color: "#9A3412", lineHeight: 1.5 }}>
-              {(FIELD_LABELS[field] || field)}: {FIELD_GUIDES[field] || "필요한 값을 먼저 채워 주세요."}
+            <div
+              key={field}
+              style={{ fontSize: 11.5, color: "#9A3412", lineHeight: 1.5 }}
+            >
+              {FIELD_LABELS[field] || field}:{" "}
+              {FIELD_GUIDES[field] || "필요한 값을 먼저 채워 주세요."}
             </div>
           ))}
         </div>
       ) : null}
-      <ActionButtonList actions={suggestedActions} onSelectAction={onSelectAction} mobile={mobile} />
+      <ActionButtonList
+        actions={suggestedActions}
+        onSelectAction={onSelectAction}
+        mobile={mobile}
+      />
     </div>
   );
 }
 
 function HintCard({ message, quickActionMap, onSelectAction, mobile = false }) {
-  const title = message.messageType === "ambiguous" ? "원하시는 작업을 골라 주세요" : "조금만 더 구체적으로 알려 주세요";
+  const title =
+    message.messageType === "ambiguous"
+      ? "원하시는 작업을 골라 주세요"
+      : "조금만 더 구체적으로 알려 주세요";
   const description =
     message.messageType === "ambiguous"
       ? "누리가 방향은 읽었어요. 아래 버튼 중에서 가장 가까운 작업을 골라 주세요."
       : "대상이나 작업 종류를 조금만 더 알려 주시면 더 정확하게 도와드릴게요.";
-  const suggestedActions = buildHintActions(message.messageType, message, quickActionMap);
+  const suggestedActions = buildHintActions(
+    message.messageType,
+    message,
+    quickActionMap,
+  );
 
   return (
     <div
@@ -328,14 +464,34 @@ function HintCard({ message, quickActionMap, onSelectAction, mobile = false }) {
         border: "1px solid #BFDBFE",
       }}
     >
-      <div style={{ fontSize: 11.5, color: "#1D4ED8", fontWeight: 700, marginBottom: 6 }}>{title}</div>
-      <div style={{ fontSize: 12.5, color: "#1E3A8A", lineHeight: 1.55 }}>{description}</div>
-      <ActionButtonList actions={suggestedActions} onSelectAction={onSelectAction} mobile={mobile} />
+      <div
+        style={{
+          fontSize: 11.5,
+          color: "#1D4ED8",
+          fontWeight: 700,
+          marginBottom: 6,
+        }}
+      >
+        {title}
+      </div>
+      <div style={{ fontSize: 12.5, color: "#1E3A8A", lineHeight: 1.55 }}>
+        {description}
+      </div>
+      <ActionButtonList
+        actions={suggestedActions}
+        onSelectAction={onSelectAction}
+        mobile={mobile}
+      />
     </div>
   );
 }
 
-function ConfirmCard({ confirmation, onConfirm, isConfirming = false, mobile = false }) {
+function ConfirmCard({
+  confirmation,
+  onConfirm,
+  isConfirming = false,
+  mobile = false,
+}) {
   if (!confirmation) return null;
   const label = CONFIRM_LABELS[confirmation.actionKey] || "실행";
   const summaryItems = buildActionPayloadSummary(confirmation);
@@ -351,11 +507,25 @@ function ConfirmCard({ confirmation, onConfirm, isConfirming = false, mobile = f
         border: "1px solid #FED7AA",
       }}
     >
-      <div style={{ fontSize: 11.5, color: "#9A3412", fontWeight: 700, marginBottom: 8 }}>실행 전에 한 번 더 확인해 주세요</div>
+      <div
+        style={{
+          fontSize: 11.5,
+          color: "#9A3412",
+          fontWeight: 700,
+          marginBottom: 8,
+        }}
+      >
+        실행 전에 한 번 더 확인해 주세요
+      </div>
       <div style={{ display: "grid", gap: 5, marginBottom: 10 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#7C2D12" }}>{label}</div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#7C2D12" }}>
+          {label}
+        </div>
         {summaryItems.map((item) => (
-          <div key={item} style={{ fontSize: 11.5, color: "#9A3412", lineHeight: 1.5 }}>
+          <div
+            key={item}
+            style={{ fontSize: 11.5, color: "#9A3412", lineHeight: 1.5 }}
+          >
             {item}
           </div>
         ))}
@@ -384,37 +554,99 @@ function ConfirmCard({ confirmation, onConfirm, isConfirming = false, mobile = f
   );
 }
 
-function Bubble({ msg, isLast, onConfirm, onSelectAction, quickActionMap, isConfirming = false, mobile = false }) {
+function Bubble({
+  msg,
+  isLast,
+  onConfirm,
+  onSelectAction,
+  quickActionMap,
+  isConfirming = false,
+  mobile = false,
+}) {
   const isBot = msg.role === "bot";
 
   return (
-    <div className="cb-msg" style={{ display: "flex", flexDirection: isBot ? "row" : "row-reverse", alignItems: "flex-end", gap: 8, marginBottom: 8 }}>
+    <div
+      className="cb-msg"
+      style={{
+        display: "flex",
+        flexDirection: isBot ? "row" : "row-reverse",
+        alignItems: "flex-end",
+        gap: 8,
+        marginBottom: 8,
+      }}
+    >
       {isBot ? <Avatar small /> : null}
-      <div style={{ maxWidth: mobile ? "86%" : "78%", display: "flex", flexDirection: "column", alignItems: isBot ? "flex-start" : "flex-end", gap: 2 }}>
+      <div
+        style={{
+          maxWidth: mobile ? "86%" : "78%",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: isBot ? "flex-start" : "flex-end",
+          gap: 2,
+        }}
+      >
         <div
           style={{
             padding: mobile ? "10px 12px" : "11px 14px",
             borderRadius: isBot ? "6px 16px 16px 16px" : "16px 6px 16px 16px",
-            background: isBot ? "#fff" : "linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)",
+            background: isBot
+              ? "#fff"
+              : "linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)",
             color: isBot ? "#374151" : "#fff",
             fontSize: mobile ? 12.5 : 13.5,
             lineHeight: 1.65,
             wordBreak: "keep-all",
-            boxShadow: isBot ? "0 1px 4px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.03)" : "0 3px 12px rgba(255,107,107,0.22)",
+            boxShadow: isBot
+              ? "0 1px 4px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.03)"
+              : "0 3px 12px rgba(255,107,107,0.22)",
           }}
         >
           {msg.text}
         </div>
-        <span style={{ fontSize: 10, color: "#B0B0B0", padding: "0 4px", opacity: isLast ? 1 : 0 }}>{fmt(msg.ts)}</span>
-        {isBot && msg.summary ? <SummaryCard summary={msg.summary} mobile={mobile} /> : null}
+        <span
+          style={{
+            fontSize: 10,
+            color: "#B0B0B0",
+            padding: "0 4px",
+            opacity: isLast ? 1 : 0,
+          }}
+        >
+          {fmt(msg.ts)}
+        </span>
+        {isBot && msg.summary ? (
+          <SummaryCard summary={msg.summary} mobile={mobile} />
+        ) : null}
         {isBot && msg.messageType === "validation" ? (
-          <ValidationCard message={msg} executionInfo={msg.executionInfo} quickActionMap={quickActionMap} onSelectAction={onSelectAction} mobile={mobile} />
+          <ValidationCard
+            message={msg}
+            executionInfo={msg.executionInfo}
+            quickActionMap={quickActionMap}
+            onSelectAction={onSelectAction}
+            mobile={mobile}
+          />
         ) : null}
-        {isBot && (msg.messageType === "ambiguous" || msg.messageType === "low_confidence") ? (
-          <HintCard message={msg} quickActionMap={quickActionMap} onSelectAction={onSelectAction} mobile={mobile} />
+        {isBot &&
+        (msg.messageType === "ambiguous" ||
+          msg.messageType === "low_confidence") ? (
+          <HintCard
+            message={msg}
+            quickActionMap={quickActionMap}
+            onSelectAction={onSelectAction}
+            mobile={mobile}
+          />
         ) : null}
-        {isBot && msg.messageType === "unsupported" ? <UnsupportedCard executionInfo={msg.executionInfo} mobile={mobile} /> : null}
-        {isBot && msg.confirmation ? <ConfirmCard confirmation={msg.confirmation} onConfirm={onConfirm} isConfirming={isConfirming} mobile={mobile} /> : null}
+        {isBot && msg.messageType === "unsupported" ? (
+          <UnsupportedCard executionInfo={msg.executionInfo} mobile={mobile} />
+        ) : null}
+        {isBot && msg.confirmation ? (
+          <ConfirmCard
+            confirmation={msg.confirmation}
+            onConfirm={onConfirm}
+            isConfirming={isConfirming}
+            mobile={mobile}
+          />
+        ) : null}
       </div>
     </div>
   );
@@ -422,7 +654,15 @@ function Bubble({ msg, isLast, onConfirm, onSelectAction, quickActionMap, isConf
 
 function Typing({ mobile = false }) {
   return (
-    <div className="cb-msg" style={{ display: "flex", alignItems: "flex-end", gap: 8, marginBottom: 8 }}>
+    <div
+      className="cb-msg"
+      style={{
+        display: "flex",
+        alignItems: "flex-end",
+        gap: 8,
+        marginBottom: 8,
+      }}
+    >
       <Avatar small />
       <div
         style={{
@@ -457,8 +697,24 @@ function QuickActionsSection({ actions, onSelectAction, mobile = false }) {
   return (
     <div style={{ width: "100%", display: "grid", gap: 8 }}>
       <div style={{ display: "grid", gap: 4 }}>
-        <div style={{ fontSize: mobile ? 15 : 16, fontWeight: 700, color: "#1F2937", textAlign: "left" }}>누리가 바로 도와드릴 수 있어요</div>
-        <div style={{ fontSize: mobile ? 11.5 : 12, color: "#6B7280", lineHeight: 1.5, textAlign: "left" }}>
+        <div
+          style={{
+            fontSize: mobile ? 15 : 16,
+            fontWeight: 700,
+            color: "#1F2937",
+            textAlign: "left",
+          }}
+        >
+          누리가 바로 도와드릴 수 있어요
+        </div>
+        <div
+          style={{
+            fontSize: mobile ? 11.5 : 12,
+            color: "#6B7280",
+            lineHeight: 1.5,
+            textAlign: "left",
+          }}
+        >
           조회, 화면 이동, 초안 작성까지 자주 쓰는 기능을 바로 시작할 수 있어요.
         </div>
       </div>
@@ -482,8 +738,24 @@ function QuickActionsSection({ actions, onSelectAction, mobile = false }) {
               fontFamily: ds.ff,
             }}
           >
-            <div style={{ fontSize: mobile ? 12.5 : 13, fontWeight: 700, color: "#9A3412" }}>{action.label}</div>
-            <div style={{ fontSize: mobile ? 10.5 : 11.5, color: "#7C2D12", lineHeight: 1.5 }}>{action.description}</div>
+            <div
+              style={{
+                fontSize: mobile ? 12.5 : 13,
+                fontWeight: 700,
+                color: "#9A3412",
+              }}
+            >
+              {action.label}
+            </div>
+            <div
+              style={{
+                fontSize: mobile ? 10.5 : 11.5,
+                color: "#7C2D12",
+                lineHeight: 1.5,
+              }}
+            >
+              {action.description}
+            </div>
           </button>
         ))}
       </div>
@@ -528,10 +800,25 @@ function ShortcutStrip({ actions, onSelectAction, mobile = false }) {
   );
 }
 
-function InputBar({ inputRef, input, setInput, onSend, isTyping, handleKey, mobile = false }) {
+function InputBar({
+  inputRef,
+  input,
+  setInput,
+  onSend,
+  isTyping,
+  handleKey,
+  mobile = false,
+}) {
   const active = input.trim() && !isTyping;
   return (
-    <div style={{ padding: mobile ? "8px 10px calc(env(safe-area-inset-bottom, 0px) + 10px)" : "10px 12px 12px", background: "#fff" }}>
+    <div
+      style={{
+        padding: mobile
+          ? "8px 10px calc(env(safe-area-inset-bottom, 0px) + 10px)"
+          : "10px 12px 12px",
+        background: "#fff",
+      }}
+    >
       <div
         style={{
           display: "flex",
@@ -578,7 +865,9 @@ function InputBar({ inputRef, input, setInput, onSend, isTyping, handleKey, mobi
             height: mobile ? 36 : 38,
             borderRadius: 12,
             border: "none",
-            background: active ? "linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)" : "#E5E7EB",
+            background: active
+              ? "linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)"
+              : "#E5E7EB",
             cursor: active ? "pointer" : "default",
             display: "flex",
             alignItems: "center",
@@ -596,16 +885,58 @@ function InputBar({ inputRef, input, setInput, onSend, isTyping, handleKey, mobi
 
 function Welcome({ actions, onSelectAction, mobile = false }) {
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: mobile ? "22px 14px 14px" : "28px 20px 20px", overflow: "auto", background: "#fff" }}>
+    <div
+      style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        padding: mobile ? "22px 14px 14px" : "28px 20px 20px",
+        overflow: "auto",
+        background: "#fff",
+      }}
+    >
       <Avatar />
-      <div style={{ fontSize: mobile ? 18 : 20, fontWeight: 700, color: "#1F2937", marginTop: 14, letterSpacing: -0.4 }}>안녕하세요, 멍비서 누리예요 🐾</div>
-      <div style={{ fontSize: mobile ? 12.5 : 13, color: "#6B7280", marginTop: 6, textAlign: "center", lineHeight: 1.6 }}>
-        자주 쓰는 기능을 먼저 보여드릴게요. 필요한 작업을 바로 눌러도 되고, 자연어로 말씀해 주셔도 돼요.
+      <div
+        style={{
+          fontSize: mobile ? 18 : 20,
+          fontWeight: 700,
+          color: "#1F2937",
+          marginTop: 14,
+          letterSpacing: -0.4,
+        }}
+      >
+        안녕하세요, 멍비서 누리예요 🐾
+      </div>
+      <div
+        style={{
+          fontSize: mobile ? 12.5 : 13,
+          color: "#6B7280",
+          marginTop: 6,
+          textAlign: "center",
+          lineHeight: 1.6,
+        }}
+      >
+        자주 쓰는 기능을 먼저 보여드릴게요. 필요한 작업을 바로 눌러도 되고,
+        자연어로 말씀해 주셔도 돼요.
       </div>
       <div style={{ width: "100%", marginTop: 18 }}>
-        <QuickActionsSection actions={actions} onSelectAction={onSelectAction} mobile={mobile} />
+        <QuickActionsSection
+          actions={actions}
+          onSelectAction={onSelectAction}
+          mobile={mobile}
+        />
       </div>
-      <div style={{ marginTop: "auto", paddingTop: 16, fontSize: 11, color: "#D1D5DB" }}>Powered by Amazon Nova</div>
+      <div
+        style={{
+          marginTop: "auto",
+          paddingTop: 16,
+          fontSize: 11,
+          color: "#D1D5DB",
+        }}
+      >
+        Powered by Amazon Nova
+      </div>
     </div>
   );
 }
@@ -661,9 +992,15 @@ export default function AdminChatBot() {
     [quickActions],
   );
 
-  const welcomeActions = useMemo(() => quickActions.slice(0, 7), [quickActions]);
+  const welcomeActions = useMemo(
+    () => quickActions.slice(0, 7),
+    [quickActions],
+  );
   const shortcutActions = useMemo(
-    () => quickActions.filter((action) => ["summary", "navigate"].includes(action.category)).slice(0, 5),
+    () =>
+      quickActions
+        .filter((action) => ["summary", "navigate"].includes(action.category))
+        .slice(0, 5),
     [quickActions],
   );
 
@@ -677,8 +1014,12 @@ export default function AdminChatBot() {
   const mobilePanelBottom = "calc(env(safe-area-inset-bottom, 0px) + 132px)";
   const mobileButtonBottom = "calc(env(safe-area-inset-bottom, 0px) + 84px)";
   const panelShift = "var(--admin-board-panel-offset, 0px)";
-  const rightChatOpen = isMobile ? `calc(10px + ${panelShift})` : `calc(28px + ${panelShift})`;
-  const rightFabClosed = isMobile ? `calc(10px + ${panelShift})` : `calc(14px + ${panelShift})`;
+  const rightChatOpen = isMobile
+    ? `calc(10px + ${panelShift})`
+    : `calc(28px + ${panelShift})`;
+  const rightFabClosed = isMobile
+    ? `calc(10px + ${panelShift})`
+    : `calc(14px + ${panelShift})`;
 
   return (
     <>
@@ -692,10 +1033,13 @@ export default function AdminChatBot() {
             right: rightChatOpen,
             width: isMobile ? "min(calc(100vw - 16px), 336px)" : 390,
             maxWidth: isMobile ? "calc(100vw - 16px)" : 390,
-            height: isMobile ? "min(calc(100dvh - env(safe-area-inset-bottom, 0px) - 84px), 520px)" : 580,
+            height: isMobile
+              ? "min(calc(100dvh - env(safe-area-inset-bottom, 0px) - 84px), 520px)"
+              : 580,
             borderRadius: isMobile ? 20 : 24,
             background: "#fff",
-            boxShadow: "0 25px 60px rgba(0,0,0,0.16), 0 8px 22px rgba(0,0,0,0.08)",
+            boxShadow:
+              "0 25px 60px rgba(0,0,0,0.16), 0 8px 22px rgba(0,0,0,0.08)",
             display: "flex",
             flexDirection: "column",
             overflow: "hidden",
@@ -714,17 +1058,54 @@ export default function AdminChatBot() {
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <Avatar small />
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: isMobile ? 14 : 15, fontWeight: 700 }}>멍비서 누리</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+                <div style={{ fontSize: isMobile ? 14 : 15, fontWeight: 700 }}>
+                  멍비서 누리
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    marginTop: 4,
+                  }}
+                >
                   <Sparkles size={12} />
-                  <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.92)" }}>운영 오케스트레이터</span>
+                  <span
+                    style={{ fontSize: 11.5, color: "rgba(255,255,255,0.92)" }}
+                  >
+                    운영 오케스트레이터
+                  </span>
                 </div>
               </div>
               <div style={{ display: "flex", gap: 6 }}>
-                <button type="button" onClick={clearMessages} style={{ width: 30, height: 30, borderRadius: 10, border: "none", background: "rgba(255,255,255,0.18)", color: "#fff", cursor: "pointer" }}>
+                <button
+                  type="button"
+                  onClick={clearMessages}
+                  style={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: 10,
+                    border: "none",
+                    background: "rgba(255,255,255,0.18)",
+                    color: "#fff",
+                    cursor: "pointer",
+                  }}
+                >
                   <RotateCcw size={14} />
                 </button>
-                <button type="button" onClick={close} style={{ width: 30, height: 30, borderRadius: 10, border: "none", background: "rgba(255,255,255,0.18)", color: "#fff", cursor: "pointer" }}>
+                <button
+                  type="button"
+                  onClick={close}
+                  style={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: 10,
+                    border: "none",
+                    background: "rgba(255,255,255,0.18)",
+                    color: "#fff",
+                    cursor: "pointer",
+                  }}
+                >
                   <Minus size={15} />
                 </button>
               </div>
@@ -732,15 +1113,30 @@ export default function AdminChatBot() {
           </div>
 
           {!hasChats ? (
-            <Welcome actions={welcomeActions} onSelectAction={triggerQuickAction} mobile={isMobile} />
+            <Welcome
+              actions={welcomeActions}
+              onSelectAction={triggerQuickAction}
+              mobile={isMobile}
+            />
           ) : (
             <>
-              <div className="cb-panel" style={{ flex: 1, overflowY: "auto", padding: isMobile ? "14px 12px 8px" : "16px 14px 8px", background: "#F9FAFB" }}>
+              <div
+                className="cb-panel"
+                style={{
+                  flex: 1,
+                  overflowY: "auto",
+                  padding: isMobile ? "14px 12px 8px" : "16px 14px 8px",
+                  background: "#F9FAFB",
+                }}
+              >
                 {messages.map((msg, index) => (
                   <Bubble
                     key={msg.id}
                     msg={msg}
-                    isLast={index === messages.length - 1 || messages[index + 1]?.role !== msg.role}
+                    isLast={
+                      index === messages.length - 1 ||
+                      messages[index + 1]?.role !== msg.role
+                    }
                     onConfirm={confirmExecute}
                     onSelectAction={triggerQuickAction}
                     quickActionMap={quickActionMap}
@@ -751,11 +1147,23 @@ export default function AdminChatBot() {
                 {isTyping ? <Typing mobile={isMobile} /> : null}
                 <div ref={bottomRef} />
               </div>
-              <ShortcutStrip actions={shortcutActions} onSelectAction={triggerQuickAction} mobile={isMobile} />
+              <ShortcutStrip
+                actions={shortcutActions}
+                onSelectAction={triggerQuickAction}
+                mobile={isMobile}
+              />
             </>
           )}
 
-          <InputBar inputRef={inputRef} input={input} setInput={setInput} onSend={() => sendMessage()} isTyping={isTyping} handleKey={handleKey} mobile={isMobile} />
+          <InputBar
+            inputRef={inputRef}
+            input={input}
+            setInput={setInput}
+            onSend={() => sendMessage()}
+            isTyping={isTyping}
+            handleKey={handleKey}
+            mobile={isMobile}
+          />
         </div>
       ) : null}
 
