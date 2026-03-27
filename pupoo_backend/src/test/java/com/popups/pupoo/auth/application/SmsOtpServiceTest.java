@@ -5,6 +5,7 @@ import com.popups.pupoo.auth.dto.SmsOtpSendRequest;
 import com.popups.pupoo.auth.dto.SmsOtpVerifyRequest;
 import com.popups.pupoo.auth.persistence.SmsOtpRedisRepository;
 import com.popups.pupoo.auth.port.SmsOtpSenderPort;
+import com.popups.pupoo.auth.support.VerificationHashSupport;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.common.util.HashUtil;
@@ -53,7 +54,7 @@ class SmsOtpServiceTest {
                 smsOtpRedisRepository,
                 smsOtpSenderPort,
                 authProperties,
-                "test-salt",
+                new VerificationHashSupport("test-salt", ""),
                 "Asia/Seoul"
         );
     }

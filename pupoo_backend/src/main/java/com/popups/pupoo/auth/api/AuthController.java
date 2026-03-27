@@ -72,7 +72,7 @@ public class AuthController {
                           GoogleOAuthService googleOAuthService,
                           NaverOAuthService naverOAuthService,
                           PasswordResetService passwordResetService,
-                          @Value("${auth.refresh.cookie.secure:false}") boolean refreshCookieSecure,
+                          @Value("${auth.refresh.cookie.secure:true}") boolean refreshCookieSecure,
                           @Value("${auth.refresh.cookie.path:/api/auth}") String refreshCookiePath) {
         this.authService = authService;
         this.signupSessionService = signupSessionService;

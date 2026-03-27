@@ -6,9 +6,9 @@ import com.popups.pupoo.auth.dto.SmsOtpVerifyRequest;
 import com.popups.pupoo.auth.persistence.SmsOtpRedisRepository;
 import com.popups.pupoo.auth.port.SmsOtpSenderPort;
 import com.popups.pupoo.auth.support.KoreanPhoneNumberNormalizer;
+import com.popups.pupoo.auth.support.VerificationHashSupport;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
-import com.popups.pupoo.common.util.HashUtil;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -25,20 +25,20 @@ public class SmsOtpService {
     private final SmsOtpRedisRepository smsOtpRedisRepository;
     private final SmsOtpSenderPort smsOtpSenderPort;
     private final AuthProperties authProperties;
-    private final String hashSalt;
+    private final VerificationHashSupport verificationHashSupport;
     private final ZoneId zoneId;
 
     public SmsOtpService(
             SmsOtpRedisRepository smsOtpRedisRepository,
             SmsOtpSenderPort smsOtpSenderPort,
             AuthProperties authProperties,
-            @Value("${verification.hash.salt:__MISSING__}") String hashSalt,
+            VerificationHashSupport verificationHashSupport,
             @Value("${app.timezone:Asia/Seoul}") String zoneId
     ) {
         this.smsOtpRedisRepository = smsOtpRedisRepository;
         this.smsOtpSenderPort = smsOtpSenderPort;
         this.authProperties = authProperties;
-        this.hashSalt = hashSalt;
+        this.verificationHashSupport = verificationHashSupport;
         this.zoneId = ZoneId.of(zoneId);
     }
 
@@ -66,7 +66,12 @@ public class SmsOtpService {
         String code = generateSixDigitCode();
         Duration otpTtl = Duration.ofSeconds(sms.getOtpExpirySeconds());
 
-        smsOtpRedisRepository.saveOtp(phoneNumber, HashUtil.sha256Hex(code + hashSalt), otpTtl, ISSUED_MARKER_TTL);
+        smsOtpRedisRepository.saveOtp(
+                phoneNumber,
+                verificationHashSupport.hashWithCurrentSalt(code),
+                otpTtl,
+                ISSUED_MARKER_TTL
+        );
         smsOtpRedisRepository.clearFailureCount(phoneNumber);
         smsOtpRedisRepository.setCooldown(phoneNumber, Duration.ofSeconds(sms.getResendCooldownSeconds()));
 
@@ -101,8 +106,7 @@ public class SmsOtpService {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "인증번호는 숫자 6자리여야 합니다.");
         }
 
-        String codeHash = HashUtil.sha256Hex(code + hashSalt);
-        if (!storedHash.equals(codeHash)) {
+        if (!verificationHashSupport.matchesAnySalt(code, storedHash)) {
             int failureCount = smsOtpRedisRepository.incrementFailureCount(
                     phoneNumber,
                     Duration.ofSeconds(sms.getOtpExpirySeconds())
@@ -117,9 +121,7 @@ public class SmsOtpService {
     }
 
     private void validateHashSalt() {
-        if (hashSalt == null || hashSalt.isBlank() || "__MISSING__".equals(hashSalt)) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "OTP 해시 설정이 누락되었습니다.");
-        }
+        verificationHashSupport.ensureConfigured();
     }
 
     private void validateSmsEnabled() {

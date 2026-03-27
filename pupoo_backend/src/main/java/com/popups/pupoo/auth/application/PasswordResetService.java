@@ -8,9 +8,9 @@ import com.popups.pupoo.auth.dto.PasswordResetVerifyRequest;
 import com.popups.pupoo.auth.persistence.PasswordResetTokenRepository;
 import com.popups.pupoo.auth.persistence.RefreshTokenRepository;
 import com.popups.pupoo.auth.port.EmailVerificationSenderPort;
+import com.popups.pupoo.auth.support.VerificationHashSupport;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
-import com.popups.pupoo.common.util.HashUtil;
 import com.popups.pupoo.user.domain.enums.UserStatus;
 import com.popups.pupoo.user.domain.model.User;
 import com.popups.pupoo.user.persistence.UserRepository;
@@ -39,7 +39,7 @@ public class PasswordResetService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailVerificationSenderPort emailVerificationSenderPort;
-    private final String hashSalt;
+    private final VerificationHashSupport verificationHashSupport;
     private final int tokenTtlMinutes;
     private final boolean exposeDevCode;
 
@@ -49,7 +49,7 @@ public class PasswordResetService {
             RefreshTokenRepository refreshTokenRepository,
             PasswordEncoder passwordEncoder,
             EmailVerificationSenderPort emailVerificationSenderPort,
-            @Value("${verification.hash.salt:__MISSING__}") String hashSalt,
+            VerificationHashSupport verificationHashSupport,
             @Value("${verification.password-reset.ttl-minutes:30}") int tokenTtlMinutes,
             @Value("${verification.dev.expose:false}") boolean exposeDevCode
     ) {
@@ -58,7 +58,7 @@ public class PasswordResetService {
         this.refreshTokenRepository = refreshTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailVerificationSenderPort = emailVerificationSenderPort;
-        this.hashSalt = hashSalt;
+        this.verificationHashSupport = verificationHashSupport;
         this.tokenTtlMinutes = tokenTtlMinutes;
         this.exposeDevCode = exposeDevCode;
     }
@@ -84,7 +84,7 @@ public class PasswordResetService {
         }
 
         String verificationCode = generateVerificationCode();
-        String tokenHash = HashUtil.sha256Hex(verificationCode + hashSalt);
+        String tokenHash = verificationHashSupport.hashWithCurrentSalt(verificationCode);
         LocalDateTime expiresAt = now.plusMinutes(tokenTtlMinutes);
 
         passwordResetTokenRepository.save(new PasswordResetToken(user.getUserId(), tokenHash, expiresAt));
@@ -147,8 +147,7 @@ public class PasswordResetService {
         }
 
         String normalizedCode = normalizeVerificationCode(verificationCode);
-        String tokenHash = HashUtil.sha256Hex(normalizedCode + hashSalt);
-        if (!passwordResetToken.getTokenHash().equals(tokenHash)) {
+        if (!verificationHashSupport.matchesAnySalt(normalizedCode, passwordResetToken.getTokenHash())) {
             throw new BusinessException(ErrorCode.PASSWORD_RESET_TOKEN_INVALID);
         }
 
@@ -156,9 +155,7 @@ public class PasswordResetService {
     }
 
     private void validateHashSalt() {
-        if (hashSalt == null || hashSalt.isBlank() || "__MISSING__".equals(hashSalt)) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR);
-        }
+        verificationHashSupport.ensureConfigured();
     }
 
     private User resolveResetUser(String email, String phone) {
