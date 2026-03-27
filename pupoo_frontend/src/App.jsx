@@ -25,6 +25,7 @@ import SessionManage from "./pages/admin/session/sessionManage";
 import Reviews from "./pages/admin/board/Reviews";
 import GalleryManage from "./pages/admin/gallery/Gallery";
 import ParticipantList from "./pages/admin/participant/ParticipantList";
+import ParticipantInsights from "./pages/admin/participant/ParticipantInsights";
 import PaymentManage from "./pages/admin/participant/PaymentManage";
 import AlertManage from "./pages/admin/participant/AlertManage";
 import RefundManage from "./pages/admin/refund/RefundManage";
@@ -234,6 +235,11 @@ function LegacyProgramRedirect({ target }) {
   return <Navigate to={eventId ? `${target}/${eventId}` : target} replace />;
 }
 
+function ParticipantDetailRoute() {
+  const { id } = useParams();
+  return <ParticipantList initialEventId={id} />;
+}
+
 export default function App() {
   return (
     <>
@@ -369,7 +375,7 @@ export default function App() {
           path="/admin/participant/detail"
           element={
             <RequireAdmin>
-              <ComingSoon />
+              <ParticipantList />
             </RequireAdmin>
           }
         />
@@ -377,7 +383,7 @@ export default function App() {
           path="/admin/participant/detail/:id"
           element={
             <RequireAdmin>
-              <ComingSoon />
+              <ParticipantDetailRoute />
             </RequireAdmin>
           }
         />
@@ -385,7 +391,7 @@ export default function App() {
           path="/admin/participant/checkin"
           element={
             <RequireAdmin>
-              <ComingSoon />
+              <ParticipantInsights mode="checkin" />
             </RequireAdmin>
           }
         />
@@ -393,7 +399,7 @@ export default function App() {
           path="/admin/participant/session"
           element={
             <RequireAdmin>
-              <ComingSoon />
+              <ParticipantInsights mode="session" />
             </RequireAdmin>
           }
         />
@@ -417,7 +423,7 @@ export default function App() {
           path="/admin/participant/stats"
           element={
             <RequireAdmin>
-              <ComingSoon />
+              <ParticipantInsights mode="stats" />
             </RequireAdmin>
           }
         />
