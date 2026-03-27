@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import creditsBackgroundVideo from "../../../../3.mp4";
+import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
 
 const css = `
   .cr-root {
@@ -208,7 +208,7 @@ export default function Credits() {
 
       <video
         className="cr-bg-video"
-        src={creditsBackgroundVideo}
+        src={toPublicAssetUrl("/uploads/home/home-1.mp4")}
         autoPlay
         muted
         loop
