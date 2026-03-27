@@ -86,8 +86,16 @@ public class Review {
     /**
      * 관리자 모더레이션: soft delete.
      */
-    public void softDelete() {
+    public void softDelete(LocalDateTime now) {
         this.deleted = true;
         this.reviewStatus = ReviewStatus.DELETED;
+        this.updatedAt = now;
+    }
+
+    public void update(byte rating, String reviewTitle, String content, LocalDateTime now) {
+        this.rating = rating;
+        this.reviewTitle = reviewTitle;
+        this.content = content;
+        this.updatedAt = now;
     }
 }

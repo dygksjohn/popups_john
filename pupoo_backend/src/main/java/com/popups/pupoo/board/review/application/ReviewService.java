@@ -202,21 +202,18 @@ public class ReviewService {
             }
         }
 
-        Review updated = Review.builder()
-                .reviewId(review.getReviewId())
-                .eventId(review.getEventId())
-                .userId(review.getUserId())
-                .rating((byte) request.getRating().shortValue())
-                .reviewTitle(request.getReviewTitle() != null ? request.getReviewTitle() : (review.getReviewTitle() != null ? review.getReviewTitle() : deriveTitleFromContent(request.getContent())))
-                .content(request.getContent())
-                .viewCount(review.getViewCount())
-                .createdAt(review.getCreatedAt())
-                .updatedAt(LocalDateTime.now())
-                .deleted(review.isDeleted())
-                .reviewStatus(review.getReviewStatus())
-                .build();
+        review.update(
+                (byte) request.getRating().shortValue(),
+                request.getReviewTitle() != null
+                        ? request.getReviewTitle()
+                        : (review.getReviewTitle() != null
+                                ? review.getReviewTitle()
+                                : deriveTitleFromContent(request.getContent())),
+                request.getContent(),
+                LocalDateTime.now()
+        );
 
-        Review saved = reviewRepository.save(updated);
+        Review saved = reviewRepository.save(review);
         return toResponse(saved);
     }
 
@@ -228,20 +225,8 @@ public class ReviewService {
             throw new SecurityException("삭제 권한이 없습니다.");
         }
 
-        Review deleted = Review.builder()
-                .reviewId(review.getReviewId())
-                .eventId(review.getEventId())
-                .userId(review.getUserId())
-                .rating(review.getRating())
-                .content(review.getContent())
-                .viewCount(review.getViewCount())
-                .createdAt(review.getCreatedAt())
-                .updatedAt(LocalDateTime.now())
-                .deleted(true)
-                .reviewStatus(ReviewStatus.DELETED)
-                .build();
-
-        reviewRepository.save(deleted);
+        review.softDelete(LocalDateTime.now());
+        reviewRepository.save(review);
     }
 
     /**

@@ -122,7 +122,7 @@ public class AdminModerationService {
             return;
         }
 
-        review.softDelete();
+        review.softDelete(java.time.LocalDateTime.now());
         adminLogService.write("REVIEW_DELETE_SOFT" + suffixReason(reason), AdminTargetType.REVIEW, reviewId);
     }
 

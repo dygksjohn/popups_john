@@ -616,7 +616,7 @@ function DetailModal({ item, onClose, onStatusChange, onDelete }) {
 /* ═══════════════════════════════════════════
    메인 컴포넌트
    ═══════════════════════════════════════════ */
-export default function ParticipantList({ subTab = "list" }) {
+export default function ParticipantList({ subTab = "list", initialEventId = null }) {
   const [events, setEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [participants, setParticipants] = useState([]);
@@ -712,6 +712,21 @@ export default function ParticipantList({ subTab = "list" }) {
     const eid = ev.eventId || ev.id?.replace("EV-", "");
     loadParticipants(eid);
   };
+
+  useEffect(() => {
+    if (!initialEventId || loadingEvents || selectedEvent || events.length === 0) {
+      return;
+    }
+
+    const matchedEvent = events.find((event) => {
+      const eventId = event.eventId || event.id?.replace("EV-", "");
+      return String(eventId) === String(initialEventId);
+    });
+
+    if (matchedEvent) {
+      selectEvent(matchedEvent);
+    }
+  }, [initialEventId, loadingEvents, selectedEvent, events]);
 
   const goBack = () => {
     setSelectedEvent(null);
