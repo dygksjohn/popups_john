@@ -29,6 +29,7 @@ jobs:
     outputs:
       frontend: ${{ steps.filter.outputs.frontend }}
       eks: ${{ steps.filter.outputs.eks }}
+      ai_image: ${{ steps.filter.outputs.ai_image }}
       ai_train: ${{ steps.filter.outputs.ai_train }}
 
     steps:
@@ -49,11 +50,12 @@ jobs:
               - "k8s/**"
               - "pupoo_ai/**"
               - "pupoo_backend/**"
+            ai_image:
+              - ".github/workflows/deploy.yml"
+              - "pupoo_ai/**"
             ai_train:
               - ".github/workflows/deploy.yml"
-              - "pupoo_ai/app/features/congestion/**"
-              - "pupoo_ai/app/infrastructure/rds.py"
-              - "pupoo_ai/requirements.txt"
+              - "pupoo_ai/**"
 
   frontend-deploy:
     runs-on: ubuntu-latest
@@ -171,7 +173,7 @@ jobs:
         run: aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
 
       - name: Load datasource env for AI training
-        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_train == 'true'
+        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_image == 'true'
         env:
           PUPOO_AI_TRAIN_DB_URL: ${{ secrets.PUPOO_AI_TRAIN_DB_URL }}
           PUPOO_AI_TRAIN_DB_USER: ${{ secrets.PUPOO_AI_TRAIN_DB_USER }}
@@ -201,20 +203,20 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Set up Python 3.12 for AI training
-        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_train == 'true'
+        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_image == 'true'
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
       - name: Install AI training dependencies
-        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_train == 'true'
+        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_image == 'true'
         working-directory: pupoo_ai
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Train congestion models
-        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_train == 'true'
+        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_image == 'true'
         working-directory: pupoo_ai
         run: |
           python -m app.features.congestion.train.train_congestion_models \
@@ -223,7 +225,7 @@ jobs:
             --output-dir ./artifacts/congestion
 
       - name: Verify trained model artifacts
-        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_train == 'true'
+        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_image == 'true'
         working-directory: pupoo_ai
         run: |
           ls -al ./artifacts/congestion
@@ -299,6 +301,7 @@ jobs:
             ${{ steps.ecr.outputs.registry }}/${{ vars.BACKEND_ECR_REPOSITORY }}:latest
 
       - name: Build and push AI image
+        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_image == 'true'
         uses: docker/build-push-action@v6
         with:
           context: ./pupoo_ai
@@ -491,10 +494,14 @@ jobs:
       - name: Apply base manifests
         run: kubectl apply -k k8s/base
 
-      - name: Update backend and AI images
+      - name: Update backend image
         run: |
           kubectl -n "${EKS_NAMESPACE:-pupoo}" set image deployment/pupoo-backend \
             backend="${{ steps.ecr.outputs.registry }}/${{ vars.BACKEND_ECR_REPOSITORY }}:${{ github.sha }}"
+
+      - name: Update AI image
+        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_image == 'true'
+        run: |
           kubectl -n "${EKS_NAMESPACE:-pupoo}" set image deployment/pupoo-ai \
             ai="${{ steps.ecr.outputs.registry }}/${{ vars.AI_ECR_REPOSITORY }}:${{ github.sha }}"
 
@@ -502,4 +509,5 @@ jobs:
         run: kubectl -n "${EKS_NAMESPACE:-pupoo}" rollout status deployment/pupoo-backend --timeout=5m
 
       - name: Wait for AI rollout
+        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_image == 'true'
         run: kubectl -n "${EKS_NAMESPACE:-pupoo}" rollout status deployment/pupoo-ai --timeout=5m

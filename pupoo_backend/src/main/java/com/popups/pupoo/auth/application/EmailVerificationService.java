@@ -6,9 +6,9 @@ import com.popups.pupoo.auth.dto.EmailChangeRequest;
 import com.popups.pupoo.auth.dto.EmailVerificationRequestResponse;
 import com.popups.pupoo.auth.persistence.EmailVerificationTokenRepository;
 import com.popups.pupoo.auth.port.EmailVerificationSenderPort;
+import com.popups.pupoo.auth.support.VerificationHashSupport;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
-import com.popups.pupoo.common.util.HashUtil;
 import com.popups.pupoo.user.domain.model.User;
 import com.popups.pupoo.user.persistence.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.Base64;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -30,7 +31,7 @@ public class EmailVerificationService {
     private final UserRepository userRepository;
     private final EmailVerificationTokenRepository tokenRepository;
     private final EmailVerificationSenderPort emailVerificationSenderPort;
-    private final String hashSalt;
+    private final VerificationHashSupport verificationHashSupport;
     private final int tokenTtlHours;
     private final int requestCooldownSeconds;
     private final boolean exposeDevToken;
@@ -39,7 +40,7 @@ public class EmailVerificationService {
             UserRepository userRepository,
             EmailVerificationTokenRepository tokenRepository,
             EmailVerificationSenderPort emailVerificationSenderPort,
-            @Value("${verification.hash.salt:__MISSING__}") String hashSalt,
+            VerificationHashSupport verificationHashSupport,
             @Value("${verification.email.ttl-hours:24}") int tokenTtlHours,
             @Value("${verification.request.cooldown-seconds:60}") int requestCooldownSeconds,
             @Value("${verification.dev.expose:true}") boolean exposeDevToken
@@ -47,7 +48,7 @@ public class EmailVerificationService {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
         this.emailVerificationSenderPort = emailVerificationSenderPort;
-        this.hashSalt = hashSalt;
+        this.verificationHashSupport = verificationHashSupport;
         this.tokenTtlHours = tokenTtlHours;
         this.requestCooldownSeconds = requestCooldownSeconds;
         this.exposeDevToken = exposeDevToken;
@@ -76,7 +77,7 @@ public class EmailVerificationService {
         });
 
         String token = UUID.randomUUID().toString().replace("-", "");
-        String tokenHash = HashUtil.sha256Hex(token + hashSalt);
+        String tokenHash = verificationHashSupport.hashWithCurrentSalt(token);
         LocalDateTime expiresAt = LocalDateTime.now().plusHours(tokenTtlHours);
 
         tokenRepository.save(new EmailVerificationToken(userId, tokenHash, expiresAt));
@@ -112,7 +113,7 @@ public class EmailVerificationService {
         });
 
         String token = createEmailChangeToken(newEmail);
-        String tokenHash = HashUtil.sha256Hex(token + hashSalt);
+        String tokenHash = verificationHashSupport.hashWithCurrentSalt(token);
         LocalDateTime expiresAt = LocalDateTime.now().plusHours(tokenTtlHours);
 
         tokenRepository.save(new EmailVerificationToken(userId, tokenHash, expiresAt));
@@ -133,9 +134,7 @@ public class EmailVerificationService {
             throw new BusinessException(ErrorCode.EMAIL_VERIFICATION_TOKEN_INVALID);
         }
 
-        String tokenHash = HashUtil.sha256Hex(token + hashSalt);
-        EmailVerificationToken emailVerificationToken = tokenRepository.findByTokenHashAndUsedAtIsNull(tokenHash)
-                .orElseThrow(() -> new BusinessException(ErrorCode.EMAIL_VERIFICATION_TOKEN_INVALID));
+        EmailVerificationToken emailVerificationToken = findEmailVerificationToken(token);
 
         if (emailVerificationToken.getExpiresAt().isBefore(LocalDateTime.now())) {
             throw new BusinessException(ErrorCode.EMAIL_VERIFICATION_TOKEN_EXPIRED);
@@ -165,9 +164,7 @@ public class EmailVerificationService {
             throw new BusinessException(ErrorCode.EMAIL_VERIFICATION_TOKEN_INVALID);
         }
 
-        String tokenHash = HashUtil.sha256Hex(token + hashSalt);
-        EmailVerificationToken emailVerificationToken = tokenRepository.findByTokenHashAndUsedAtIsNull(tokenHash)
-                .orElseThrow(() -> new BusinessException(ErrorCode.EMAIL_VERIFICATION_TOKEN_INVALID));
+        EmailVerificationToken emailVerificationToken = findEmailVerificationToken(token);
 
         if (!emailVerificationToken.getUserId().equals(userId)) {
             throw new BusinessException(ErrorCode.FORBIDDEN);
@@ -193,9 +190,15 @@ public class EmailVerificationService {
     }
 
     private void validateHashSalt() {
-        if (hashSalt == null || hashSalt.isBlank() || "__MISSING__".equals(hashSalt)) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR);
-        }
+        verificationHashSupport.ensureConfigured();
+    }
+
+    private EmailVerificationToken findEmailVerificationToken(String token) {
+        return verificationHashSupport.candidateHashes(token).stream()
+                .map(tokenRepository::findByTokenHashAndUsedAtIsNull)
+                .flatMap(Optional::stream)
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(ErrorCode.EMAIL_VERIFICATION_TOKEN_INVALID));
     }
 
     private String normalizeEmail(String email) {

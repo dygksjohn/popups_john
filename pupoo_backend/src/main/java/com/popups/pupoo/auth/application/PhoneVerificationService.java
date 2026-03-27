@@ -7,9 +7,9 @@ import com.popups.pupoo.auth.dto.PhoneVerificationRequest;
 import com.popups.pupoo.auth.dto.PhoneVerificationRequestResponse;
 import com.popups.pupoo.auth.persistence.PhoneVerificationTokenRepository;
 import com.popups.pupoo.auth.port.SmsOtpSenderPort;
+import com.popups.pupoo.auth.support.VerificationHashSupport;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
-import com.popups.pupoo.common.util.HashUtil;
 import com.popups.pupoo.user.domain.model.User;
 import com.popups.pupoo.user.persistence.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,7 +33,7 @@ public class PhoneVerificationService {
     private final PhoneVerificationTokenRepository tokenRepository;
     private final SmsOtpSenderPort smsOtpSenderPort;
 
-    private final String hashSalt;
+    private final VerificationHashSupport verificationHashSupport;
     private final int otpTtlMinutes;
     private final int requestCooldownSeconds;
     private final int maxAttempts;
@@ -44,7 +44,7 @@ public class PhoneVerificationService {
             UserRepository userRepository,
             PhoneVerificationTokenRepository tokenRepository,
             SmsOtpSenderPort smsOtpSenderPort,
-            @Value("${verification.hash.salt:__MISSING__}") String hashSalt,
+            VerificationHashSupport verificationHashSupport,
             @Value("${verification.phone.ttl-minutes:5}") int otpTtlMinutes,
             @Value("${verification.request.cooldown-seconds:60}") int requestCooldownSeconds,
             @Value("${verification.phone.max-attempts:5}") int maxAttempts,
@@ -54,7 +54,7 @@ public class PhoneVerificationService {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
         this.smsOtpSenderPort = smsOtpSenderPort;
-        this.hashSalt = hashSalt;
+        this.verificationHashSupport = verificationHashSupport;
         this.otpTtlMinutes = otpTtlMinutes;
         this.requestCooldownSeconds = requestCooldownSeconds;
         this.maxAttempts = maxAttempts;
@@ -88,7 +88,7 @@ public class PhoneVerificationService {
         });
 
         String code = generateSixDigitCode();
-        String codeHash = HashUtil.sha256Hex(code + hashSalt);
+        String codeHash = verificationHashSupport.hashWithCurrentSalt(code);
 
         LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(otpTtlMinutes);
         tokenRepository.save(new PhoneVerificationToken(userId, phone, codeHash, expiresAt));
@@ -129,7 +129,7 @@ public class PhoneVerificationService {
         });
 
         String code = generateSixDigitCode();
-        String codeHash = HashUtil.sha256Hex(code + hashSalt);
+        String codeHash = verificationHashSupport.hashWithCurrentSalt(code);
         LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(otpTtlMinutes);
 
         tokenRepository.save(new PhoneVerificationToken(userId, phone, codeHash, expiresAt));
@@ -168,8 +168,7 @@ public class PhoneVerificationService {
 
         token.increaseAttemptCount();
 
-        String codeHash = HashUtil.sha256Hex(request.getCode() + hashSalt);
-        if (!codeHash.equals(token.getCodeHash())) {
+        if (!verificationHashSupport.matchesAnySalt(request.getCode(), token.getCodeHash())) {
             tokenRepository.save(token);
             throw new BusinessException(ErrorCode.PHONE_OTP_INVALID);
         }
@@ -205,8 +204,7 @@ public class PhoneVerificationService {
         }
 
         token.increaseAttemptCount();
-        String codeHash = HashUtil.sha256Hex(request.getCode() + hashSalt);
-        if (!codeHash.equals(token.getCodeHash())) {
+        if (!verificationHashSupport.matchesAnySalt(request.getCode(), token.getCodeHash())) {
             tokenRepository.save(token);
             throw new BusinessException(ErrorCode.PHONE_OTP_INVALID);
         }
@@ -224,9 +222,7 @@ public class PhoneVerificationService {
     }
 
     private void validateHashSalt() {
-        if (hashSalt == null || hashSalt.isBlank() || "__MISSING__".equals(hashSalt)) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR);
-        }
+        verificationHashSupport.ensureConfigured();
     }
 
     private String generateSixDigitCode() {

@@ -29,3 +29,18 @@ except ModuleNotFoundError:
     fake_pymilvus_client = types.ModuleType("pymilvus.milvus_client")
     fake_pymilvus_client.IndexParams = object
     sys.modules.setdefault("pymilvus.milvus_client", fake_pymilvus_client)
+
+
+from pupoo_ai.app.core.config import settings as pupoo_settings  # noqa: E402
+
+
+pupoo_settings.internal_token = "test-internal-token"
+pupoo_settings.previous_internal_tokens = ""
+
+try:
+    from app.core.config import settings as app_settings  # noqa: E402
+
+    app_settings.internal_token = "test-internal-token"
+    app_settings.previous_internal_tokens = ""
+except Exception:
+    pass

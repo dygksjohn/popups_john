@@ -19,9 +19,9 @@ import com.popups.pupoo.auth.persistence.SignupSessionRepository;
 import com.popups.pupoo.auth.port.EmailVerificationSenderPort;
 import com.popups.pupoo.auth.port.SmsOtpSenderPort;
 import com.popups.pupoo.auth.support.RefreshCookieRequestSupport;
+import com.popups.pupoo.auth.support.VerificationHashSupport;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
-import com.popups.pupoo.common.util.HashUtil;
 import com.popups.pupoo.user.application.UserService;
 import com.popups.pupoo.user.domain.model.User;
 import com.popups.pupoo.user.dto.UserCreateRequest;
@@ -59,7 +59,7 @@ public class SignupSessionService {
     private final PasswordEncoder passwordEncoder;
     private final EmailVerificationSenderPort emailVerificationSenderPort;
     private final SmsOtpSenderPort smsOtpSenderPort;
-    private final String hashSalt;
+    private final VerificationHashSupport verificationHashSupport;
     private final int otpTtlMinutes;
     private final int otpCooldownSeconds;
     private final int otpDailyLimit;
@@ -81,7 +81,7 @@ public class SignupSessionService {
             PasswordEncoder passwordEncoder,
             EmailVerificationSenderPort emailVerificationSenderPort,
             SmsOtpSenderPort smsOtpSenderPort,
-            @Value("${verification.hash.salt:__MISSING__}") String hashSalt,
+            VerificationHashSupport verificationHashSupport,
             @Value("${signup.otp.ttl-minutes:5}") int otpTtlMinutes,
             @Value("${signup.otp.cooldown-seconds:60}") int otpCooldownSeconds,
             @Value("${signup.otp.daily-limit:5}") int otpDailyLimit,
@@ -102,7 +102,7 @@ public class SignupSessionService {
         this.passwordEncoder = passwordEncoder;
         this.emailVerificationSenderPort = emailVerificationSenderPort;
         this.smsOtpSenderPort = smsOtpSenderPort;
-        this.hashSalt = hashSalt;
+        this.verificationHashSupport = verificationHashSupport;
         this.otpTtlMinutes = otpTtlMinutes;
         this.otpCooldownSeconds = otpCooldownSeconds;
         this.otpDailyLimit = otpDailyLimit;
@@ -180,7 +180,7 @@ public class SignupSessionService {
 
         String otp = generateSixDigitCode();
         session.setOtpLastSentAt(LocalDateTime.now());
-        session.setOtpCodeHash(HashUtil.sha256Hex(otp + hashSalt));
+        session.setOtpCodeHash(verificationHashSupport.hashWithCurrentSalt(otp));
         session.setOtpExpiresAt(LocalDateTime.now().plusMinutes(otpTtlMinutes));
         session.setOtpFailCount(0);
         session.setOtpBlockedUntil(null);
@@ -235,8 +235,8 @@ public class SignupSessionService {
 
         session.setOtpFailCount(session.getOtpFailCount() + 1);
 
-        String hash = HashUtil.sha256Hex(safeTrim(request.getOtpCode()) + hashSalt);
-        if (session.getOtpCodeHash() == null || !hash.equals(session.getOtpCodeHash())) {
+        if (session.getOtpCodeHash() == null
+                || !verificationHashSupport.matchesAnySalt(safeTrim(request.getOtpCode()), session.getOtpCodeHash())) {
             signupSessionRepository.save(session);
             throw new BusinessException(ErrorCode.PHONE_OTP_INVALID);
         }
@@ -271,7 +271,7 @@ public class SignupSessionService {
         }
 
         String code = generateSixDigitCode();
-        session.setEmailCodeHash(HashUtil.sha256Hex(code + hashSalt));
+        session.setEmailCodeHash(verificationHashSupport.hashWithCurrentSalt(code));
         session.setEmailExpiresAt(LocalDateTime.now().plusMinutes(emailTtlMinutes));
         session.setEmailLastSentAt(LocalDateTime.now());
         session.setEmailFailCount(0);
@@ -314,8 +314,8 @@ public class SignupSessionService {
 
         session.setEmailFailCount(session.getEmailFailCount() + 1);
 
-        String hash = HashUtil.sha256Hex(safeTrim(request.getCode()) + hashSalt);
-        if (session.getEmailCodeHash() == null || !hash.equals(session.getEmailCodeHash())) {
+        if (session.getEmailCodeHash() == null
+                || !verificationHashSupport.matchesAnySalt(safeTrim(request.getCode()), session.getEmailCodeHash())) {
             signupSessionRepository.save(session);
             throw new BusinessException(ErrorCode.EMAIL_VERIFICATION_TOKEN_INVALID);
         }
@@ -416,9 +416,7 @@ public class SignupSessionService {
     }
 
     private void validateSalt() {
-        if (hashSalt == null || hashSalt.isBlank() || "__MISSING__".equals(hashSalt)) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR);
-        }
+        verificationHashSupport.ensureConfigured();
     }
 
     private String generateSixDigitCode() {

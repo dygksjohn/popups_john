@@ -3,10 +3,13 @@ package com.popups.pupoo.auth.token;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.List;
+import java.util.stream.Stream;
 import java.util.UUID;
 
 import javax.crypto.SecretKey;
 
+import com.popups.pupoo.auth.support.SecretRotationSupport;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -23,13 +26,16 @@ import io.jsonwebtoken.security.Keys;
 public class JwtProviderImpl implements JwtProvider {
 
     private final SecretKey secretKey;
+    private final List<SecretKey> verificationKeys;
     private final String issuer;
 
     public JwtProviderImpl(
             @Value("${auth.jwt.secret}") String secret,
+            @Value("${auth.jwt.previous-secrets:}") String previousSecrets,
             @Value("${auth.jwt.issuer:pupoo}") String issuer
     ) {
         this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        this.verificationKeys = buildVerificationKeys(secret, previousSecrets);
         this.issuer = issuer;
     }
 
@@ -103,16 +109,30 @@ public class JwtProviderImpl implements JwtProvider {
     }
 
     private Claims parseClaims(String token) {
-        try {
-            return Jwts.parserBuilder()
-                    .setSigningKey(secretKey)
-                    .requireIssuer(issuer)
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
-        } catch (JwtException e) {
-            // 기능: JWT 파싱/검증 실패
-            throw new BusinessException(ErrorCode.JWT_INVALID);
+        for (SecretKey verificationKey : verificationKeys) {
+            try {
+                return Jwts.parserBuilder()
+                        .setSigningKey(verificationKey)
+                        .requireIssuer(issuer)
+                        .build()
+                        .parseClaimsJws(token)
+                        .getBody();
+            } catch (JwtException ignored) {
+                // Try rotated verification keys before failing the request.
+            }
         }
+
+        // 기능: JWT 파싱/검증 실패
+        throw new BusinessException(ErrorCode.JWT_INVALID);
+    }
+
+    private List<SecretKey> buildVerificationKeys(String currentSecret, String previousSecrets) {
+        return Stream.concat(
+                        Stream.of(currentSecret),
+                        SecretRotationSupport.parseSecretList(previousSecrets).stream()
+                )
+                .distinct()
+                .map(secret -> Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8)))
+                .toList();
     }
 }

@@ -32,10 +32,12 @@ async def readiness_check():
     # 흐름: 기본 payload 구성 -> 설정 확인 -> 연결 점검 -> 상태 반환.
     payload = {
         "status": "ready",
-        "model": settings.bedrock_model_id,
-        "database": {
-            "configured": False,
-            "reachable": False,
+        "service": settings.service_name,
+        "dependencies": {
+            "database": {
+                "configured": False,
+                "reachable": False,
+            },
         },
     }
 
@@ -43,13 +45,17 @@ async def readiness_check():
         return payload
 
     try:
-        payload["database"] = check_connection()
+        database_status = check_connection()
+        payload["dependencies"]["database"] = {
+            "configured": bool(database_status.get("configured")),
+            "reachable": bool(database_status.get("reachable")),
+        }
         return payload
     except Exception as exc:
         payload["status"] = "degraded"
-        payload["database"] = {
+        payload["dependencies"]["database"] = {
             "configured": True,
             "reachable": False,
-            "error": str(exc),
         }
+        payload["reason"] = str(exc)
         return JSONResponse(status_code=503, content=payload)

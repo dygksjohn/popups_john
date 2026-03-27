@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 try:
     from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -16,7 +17,8 @@ class Settings(BaseSettings):
     # 설명: 외부 의존성 정보와 기능 활성화 값을 이 객체에 모아 공통 기준으로 사용한다.
     # 흐름: 환경 변수 로드 -> 타입 변환 -> settings 싱글톤으로 노출.
     service_name: str = "pupoo-ai"
-    internal_token: str = "dev-internal-token"
+    internal_token: str = ""
+    previous_internal_tokens: str = ""
     log_level: str = "INFO"
     anthropic_api_key: str = ""
     aws_region: str = "us-east-1"
@@ -82,3 +84,16 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def configured_internal_tokens() -> list[str]:
+    raw_values = [settings.internal_token, settings.previous_internal_tokens]
+    tokens: list[str] = []
+    for raw_value in raw_values:
+        if raw_value is None:
+            continue
+        for token in re.split(r"[,;\r\n]+", raw_value):
+            normalized = token.strip()
+            if normalized and normalized not in tokens:
+                tokens.append(normalized)
+    return tokens
