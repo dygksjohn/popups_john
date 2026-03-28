@@ -1,6 +1,7 @@
-import { tokenStore } from "../../../app/http/tokenStore";
+import { axiosInstance } from "../../../app/http/axiosInstance";
 
 const NOTIFICATION_STREAM_PATH = "/api/notifications/stream";
+const NOTIFICATION_STREAM_SESSION_PATH = "/api/notifications/stream/session";
 const DEFAULT_NOTIFICATION_EVENTS = [
   "notification-received",
   "notification",
@@ -14,47 +15,52 @@ export function connectNotificationStream({
 } = {}) {
   if (typeof window === "undefined" || typeof EventSource === "undefined") {
     return {
+      ready: Promise.resolve(false),
       close() {},
     };
   }
 
-  const streamUrl = buildNotificationStreamUrl();
-  const source = new EventSource(streamUrl, {
-    withCredentials: true,
-  });
+  let source = null;
+  let closed = false;
 
-  const handleNotification = (event) => {
-    onNotification?.(event);
-  };
+  const ready = axiosInstance
+    .post(NOTIFICATION_STREAM_SESSION_PATH)
+    .then(() => {
+      if (closed) return false;
 
-  source.onopen = (event) => {
-    onOpen?.(event);
-  };
+      source = new EventSource(NOTIFICATION_STREAM_PATH, {
+        withCredentials: true,
+      });
 
-  source.onmessage = handleNotification;
-  eventNames.forEach((eventName) => {
-    source.addEventListener(eventName, handleNotification);
-  });
+      const handleNotification = (event) => {
+        onNotification?.(event);
+      };
 
-  source.onerror = (event) => {
-    onError?.(event);
-  };
+      source.onopen = (event) => {
+        onOpen?.(event);
+      };
+
+      source.onmessage = handleNotification;
+      eventNames.forEach((eventName) => {
+        source.addEventListener(eventName, handleNotification);
+      });
+
+      source.onerror = (event) => {
+        onError?.(event);
+      };
+
+      return true;
+    })
+    .catch((error) => {
+      onError?.(error);
+      return false;
+    });
 
   return {
+    ready,
     close() {
-      source.close();
+      closed = true;
+      source?.close();
     },
   };
-}
-
-function buildNotificationStreamUrl() {
-  const accessToken = tokenStore.getAccessToken();
-  if (!accessToken) {
-    return NOTIFICATION_STREAM_PATH;
-  }
-
-  const params = new URLSearchParams({
-    access_token: accessToken,
-  });
-  return `${NOTIFICATION_STREAM_PATH}?${params.toString()}`;
 }
