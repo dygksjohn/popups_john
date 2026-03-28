@@ -55,7 +55,140 @@ function Avatar({ small = false }) {
   );
 }
 
-function Bubble({ msg, isLast, mobile = false }) {
+function ActionButtonList({ actions, onSelectAction, mobile = false }) {
+  if (!actions?.length) return null;
+  return (
+    <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 8 }}>
+      {actions.map((action, index) => (
+        <button
+          key={`${action.type}-${action.payload?.label || index}`}
+          type="button"
+          onClick={() => onSelectAction(action)}
+          style={{
+            border: `1px solid ${DARK_BORDER}`,
+            background: "#111827",
+            color: "#F3F4F6",
+            borderRadius: 999,
+            padding: mobile ? "7px 10px" : "8px 12px",
+            fontSize: mobile ? 11 : 11.5,
+            fontWeight: 700,
+            fontFamily: FF,
+            cursor: "pointer",
+          }}
+        >
+          {action.payload?.label || "추천 액션"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function SummaryCard({ summary, mobile = false }) {
+  if (!summary?.items?.length && !summary?.sections?.length) return null;
+
+  return (
+    <div
+      style={{
+        marginTop: 8,
+        width: "100%",
+        padding: mobile ? "10px 12px" : "12px 14px",
+        borderRadius: 14,
+        background: "#0F172A",
+        border: `1px solid ${DARK_BORDER}`,
+        display: "grid",
+        gap: 10,
+      }}
+    >
+      <div style={{ display: "grid", gap: 4 }}>
+        <div style={{ fontSize: 11.5, color: ACCENT, fontWeight: 700 }}>
+          {summary.title || "추천 요약"}
+        </div>
+        <div style={{ fontSize: 12, color: "#9CA3AF", lineHeight: 1.55 }}>
+          지금 바로 확인하면 좋은 핵심 정보만 골라서 정리했어요.
+        </div>
+      </div>
+      {summary?.items?.length ? (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: mobile ? "1fr" : "repeat(2, minmax(0, 1fr))",
+            gap: 8,
+          }}
+        >
+          {summary.items.map((item) => (
+            <div
+              key={`${summary.summaryType}-${item.label}`}
+              style={{
+                background: "#111827",
+                border: `1px solid ${DARK_BORDER}`,
+                borderRadius: 12,
+                padding: "10px 12px",
+              }}
+            >
+              <div style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 4 }}>
+                {item.label}
+              </div>
+              <div style={{ fontSize: 13.5, fontWeight: 700, color: "#F3F4F6", lineHeight: 1.55 }}>
+                {item.value}
+                {item.meta ? ` / ${item.meta}` : ""}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {summary?.sections?.length
+        ? summary.sections.map((section) => (
+            <div
+              key={section.key}
+              style={{
+                background: "#111827",
+                border: `1px solid ${DARK_BORDER}`,
+                borderRadius: 12,
+                padding: 12,
+              }}
+            >
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#F3F4F6", marginBottom: 8 }}>
+                {section.title}
+              </div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: mobile ? "1fr" : "repeat(2, minmax(0, 1fr))",
+                  gap: 8,
+                }}
+              >
+                {section.items.map((item) => (
+                  <div
+                    key={`${section.key}-${item.label}`}
+                    style={{
+                      background: "#0B1220",
+                      border: `1px solid ${DARK_BORDER}`,
+                      borderRadius: 10,
+                      padding: "10px 12px",
+                    }}
+                  >
+                    <div style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 4 }}>
+                      {item.label}
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#F3F4F6", lineHeight: 1.55 }}>
+                      {item.value}
+                    </div>
+                    {item.meta ? (
+                      <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 4, lineHeight: 1.5 }}>
+                        {item.meta}
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))
+        : null}
+    </div>
+  );
+}
+
+function Bubble({ msg, isLast, onSelectAction, mobile = false }) {
   const isBot = msg.role === "bot";
   return (
     <div className="scb-msg" style={{ display: "flex", flexDirection: isBot ? "row" : "row-reverse", alignItems: "flex-end", gap: 8, marginBottom: 8 }}>
@@ -78,6 +211,14 @@ function Bubble({ msg, isLast, mobile = false }) {
         >
           {msg.text}
         </div>
+        {isBot ? <SummaryCard summary={msg.summary} mobile={mobile} /> : null}
+        {isBot ? (
+          <ActionButtonList
+            actions={msg.actions}
+            onSelectAction={onSelectAction}
+            mobile={mobile}
+          />
+        ) : null}
         <span style={{ fontSize: 10, color: "#B0B0B0", padding: "0 4px", opacity: isLast ? 1 : 0 }}>{fmt(msg.ts)}</span>
       </div>
     </div>
@@ -288,6 +429,7 @@ export default function SiteChatBot() {
     isTyping,
     quickActions,
     triggerQuickAction,
+    handleMessageAction,
     sendMessage,
     resetConversation,
   } = useSiteChatBot();
@@ -463,6 +605,7 @@ export default function SiteChatBot() {
                     key={msg.id}
                     msg={msg}
                     isLast={i === messages.length - 1 || messages[i + 1]?.role !== msg.role}
+                    onSelectAction={handleMessageAction}
                     mobile={isMobile}
                   />
                 ))}

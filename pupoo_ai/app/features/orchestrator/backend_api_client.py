@@ -50,6 +50,22 @@ class BackendApiClient:
     async def get_event(self, event_id: int) -> dict[str, Any]:
         return await self._request("GET", f"/api/events/{event_id}")
 
+    async def list_programs(
+        self,
+        event_id: int,
+        *,
+        size: int = 10,
+    ) -> list[dict[str, Any]]:
+        response = await self._request(
+            "GET",
+            f"/api/events/{event_id}/programs",
+            params={
+                "page": 0,
+                "size": size,
+            },
+        )
+        return self._content_items(response)
+
     async def list_notices(self, *, keyword: str | None = None, size: int = 10) -> list[dict[str, Any]]:
         response = await self._request(
             "GET",

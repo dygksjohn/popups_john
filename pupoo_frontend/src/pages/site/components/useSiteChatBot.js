@@ -123,7 +123,7 @@ const QUICK_ACTIONS = [
     label: "FAQ",
     description: "자주 묻는 질문 모음으로 이동해요.",
     kind: "navigate",
-    route: "/info/faq",
+    route: "/community/faq",
     category: "navigate",
   },
 ];
@@ -146,6 +146,34 @@ function initialMessages() {
       "안녕하세요! 푸리예요 🐾 행사 안내, 로그인, 결제, 환불 등 궁금한 건 뭐든 물어봐 주세요!",
     ),
   ];
+}
+
+function resolveActionLabel(action) {
+  if (action?.payload?.label) return action.payload.label;
+  if (action?.type === "NAVIGATE") return "바로가기";
+  if (action?.type === "SEND_MESSAGE") return "자세히 보기";
+  return "추천 액션";
+}
+
+function normalizeActions(actions) {
+  return (actions || []).map((action) => ({
+    ...action,
+    payload: {
+      ...(action?.payload || {}),
+      label: resolveActionLabel(action),
+    },
+  }));
+}
+
+function enrichBotMessage(id, response) {
+  const actions = normalizeActions(response?.actions);
+  const summaryAction = actions.find((action) => action?.type === "SHOW_SUMMARY");
+
+  return createBotMessage(id, response?.message || "응답을 받지 못했어요.", {
+    messageType: response?.messageType || "default",
+    summary: summaryAction?.payload || null,
+    actions: actions.filter((action) => action?.type !== "SHOW_SUMMARY"),
+  });
 }
 
 function resolveCurrentPage(pathname) {
@@ -198,7 +226,7 @@ async function requestChat({ history, userMessage, context }) {
     );
   }
 
-  return payload?.data || { message: "응답을 받지 못했어요.", messageType: "default" };
+  return payload?.data || { message: "응답을 받지 못했어요.", messageType: "default", actions: [] };
 }
 
 export function useSiteChatBot() {
@@ -242,9 +270,7 @@ export function useSiteChatBot() {
         });
         setMessages((prev) => [
           ...prev,
-          createBotMessage(idRef.current++, response.message || "응답을 받지 못했어요.", {
-            messageType: response.messageType || "default",
-          }),
+          enrichBotMessage(idRef.current++, response),
         ]);
       } catch (error) {
         setMessages((prev) => [
@@ -278,6 +304,29 @@ export function useSiteChatBot() {
     [navigate, sendMessage],
   );
 
+  const handleMessageAction = useCallback(
+    async (action) => {
+      if (!action) return;
+
+      if (action.type === "NAVIGATE" && action.payload?.route) {
+        navigate(action.payload.route);
+        setMessages((prev) => [
+          ...prev,
+          createBotMessage(
+            idRef.current++,
+            `${action.payload.label || "해당"} 화면으로 안내할게요! 🐾`,
+          ),
+        ]);
+        return;
+      }
+
+      if (action.type === "SEND_MESSAGE" && action.payload?.prompt) {
+        await sendMessage(action.payload.prompt);
+      }
+    },
+    [navigate, sendMessage],
+  );
+
   const resetConversation = useCallback(() => {
     setMessages(initialMessages());
     setInput("");
@@ -298,6 +347,7 @@ export function useSiteChatBot() {
     isTyping,
     quickActions,
     triggerQuickAction,
+    handleMessageAction,
     sendMessage,
     clearMessages,
     resetConversation,
