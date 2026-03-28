@@ -19,6 +19,15 @@ on:
       - "scripts/configure-aws-oidc.sh"
       - "scripts/ensure-frontend-csp-report-only.sh"
   workflow_dispatch:
+    inputs:
+      run_ai_train:
+        description: "AI 학습까지 포함할지 선택합니다."
+        required: false
+        type: boolean
+        default: true
+  schedule:
+    # Monthly smoke deployment on the first day at 18:00 UTC.
+    - cron: "0 18 1 * *"
 
 concurrency:
   group: deploy-main-${{ github.ref }}
@@ -35,8 +44,33 @@ jobs:
       backend_image: ${{ steps.filter.outputs.backend_image }}
       ai_image: ${{ steps.filter.outputs.ai_image }}
       ai_train: ${{ steps.filter.outputs.ai_train }}
+      force_full_run: ${{ steps.mode.outputs.force_full_run }}
+      force_ai_train: ${{ steps.mode.outputs.force_ai_train }}
 
     steps:
+      - name: Resolve execution mode
+        id: mode
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RUN_AI_TRAIN_INPUT: ${{ github.event.inputs.run_ai_train || '' }}
+        run: |
+          if [[ "${EVENT_NAME}" == "workflow_dispatch" || "${EVENT_NAME}" == "schedule" ]]; then
+            echo "force_full_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "force_full_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
+            if [[ "${RUN_AI_TRAIN_INPUT}" == "false" ]]; then
+              echo "force_ai_train=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "force_ai_train=true" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "force_ai_train=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout repository
         uses: actions/checkout@v6.0.2
 
@@ -73,7 +107,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: changes
-    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.frontend == 'true'
+    if: needs.changes.outputs.force_full_run == 'true' || needs.changes.outputs.frontend == 'true'
     permissions:
       contents: read
       id-token: write
@@ -139,7 +173,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: changes
-    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.cluster_sync == 'true'
+    if: needs.changes.outputs.force_full_run == 'true' || needs.changes.outputs.cluster_sync == 'true'
     permissions:
       contents: read
       id-token: write
@@ -378,7 +412,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: changes
-    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.backend_image == 'true'
+    if: needs.changes.outputs.force_full_run == 'true' || needs.changes.outputs.backend_image == 'true'
     permissions:
       contents: read
       id-token: write
@@ -415,7 +449,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     needs: changes
-    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_image == 'true'
+    if: needs.changes.outputs.force_full_run == 'true' || needs.changes.outputs.ai_image == 'true'
     permissions:
       contents: read
       id-token: write
@@ -442,7 +476,7 @@ jobs:
         run: aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
 
       - name: Load datasource env for AI training
-        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_train == 'true'
+        if: needs.changes.outputs.force_ai_train == 'true' || needs.changes.outputs.ai_train == 'true'
         env:
           PUPOO_AI_TRAIN_DB_URL: ${{ secrets.PUPOO_AI_TRAIN_DB_URL }}
           PUPOO_AI_TRAIN_DB_USER: ${{ secrets.PUPOO_AI_TRAIN_DB_USER }}
@@ -472,20 +506,20 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Set up Python 3.12 for AI training
-        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_train == 'true'
+        if: needs.changes.outputs.force_ai_train == 'true' || needs.changes.outputs.ai_train == 'true'
         uses: actions/setup-python@v6.2.0
         with:
           python-version: "3.12"
 
       - name: Install AI training dependencies
-        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_train == 'true'
+        if: needs.changes.outputs.force_ai_train == 'true' || needs.changes.outputs.ai_train == 'true'
         working-directory: pupoo_ai
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Train congestion models
-        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_train == 'true'
+        if: needs.changes.outputs.force_ai_train == 'true' || needs.changes.outputs.ai_train == 'true'
         working-directory: pupoo_ai
         run: |
           python -m app.features.congestion.train.train_congestion_models \
@@ -494,7 +528,7 @@ jobs:
             --output-dir ./artifacts/congestion
 
       - name: Verify trained model artifacts
-        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_train == 'true'
+        if: needs.changes.outputs.force_ai_train == 'true' || needs.changes.outputs.ai_train == 'true'
         working-directory: pupoo_ai
         run: |
           ls -al ./artifacts/congestion
@@ -591,7 +625,7 @@ jobs:
     timeout-minutes: 15
     needs: [changes, cluster-sync, backend-image]
     if: >
-      (github.event_name == 'workflow_dispatch' || needs.changes.outputs.backend_image == 'true') &&
+      (needs.changes.outputs.force_full_run == 'true' || needs.changes.outputs.backend_image == 'true') &&
       needs.cluster-sync.result == 'success' &&
       needs.backend-image.result == 'success'
     permissions:
@@ -636,7 +670,7 @@ jobs:
     timeout-minutes: 15
     needs: [changes, cluster-sync, ai-image]
     if: >
-      (github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_image == 'true') &&
+      (needs.changes.outputs.force_full_run == 'true' || needs.changes.outputs.ai_image == 'true') &&
       needs.cluster-sync.result == 'success' &&
       needs.ai-image.result == 'success'
     permissions:

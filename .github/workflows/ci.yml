@@ -5,12 +5,14 @@
 name: CI
 
 on:
+  workflow_dispatch:
   pull_request:
     branches:
       - develop
       - main
     paths:
       - ".github/workflows/ci.yml"
+      - ".github/dependabot.yml"
       - "pupoo_ai/**"
       - "pupoo_backend/**"
       - "pupoo_frontend/**"
@@ -22,11 +24,15 @@ on:
       - main
     paths:
       - ".github/workflows/ci.yml"
+      - ".github/dependabot.yml"
       - "pupoo_ai/**"
       - "pupoo_backend/**"
       - "pupoo_frontend/**"
       - "scripts/check-import-case.mjs"
       - "scripts/configure-aws-oidc.sh"
+  schedule:
+    # Every Monday 03:00 KST / Sunday 18:00 UTC.
+    - cron: "0 18 * * 0"
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -42,8 +48,19 @@ jobs:
       backend: ${{ steps.filter.outputs.backend }}
       ai: ${{ steps.filter.outputs.ai }}
       workflow_guard: ${{ steps.filter.outputs.workflow_guard }}
+      force_full_run: ${{ steps.mode.outputs.force_full_run }}
 
     steps:
+      - name: Resolve execution mode
+        id: mode
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" || "${{ github.event_name }}" == "schedule" ]]; then
+            echo "force_full_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "force_full_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout repository
         uses: actions/checkout@v6.0.2
 
@@ -65,13 +82,14 @@ jobs:
             workflow_guard:
               - ".github/workflows/ci.yml"
               - ".github/workflows/deploy.yml"
+              - ".github/dependabot.yml"
               - "scripts/configure-aws-oidc.sh"
 
   workflow-guard:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: changes
-    if: needs.changes.outputs.workflow_guard == 'true'
+    if: needs.changes.outputs.force_full_run == 'true' || needs.changes.outputs.workflow_guard == 'true'
     permissions:
       contents: read
 
@@ -83,6 +101,7 @@ jobs:
         run: |
           bash -n ./scripts/configure-aws-oidc.sh
           bash -n ./scripts/ensure-frontend-csp-report-only.sh
+          ruby -e "require 'yaml'; YAML.load_file('.github/dependabot.yml')"
 
       - name: Block deprecated AWS credentials action
         run: |
@@ -95,7 +114,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: changes
-    if: needs.changes.outputs.ai == 'true'
+    if: needs.changes.outputs.force_full_run == 'true' || needs.changes.outputs.ai == 'true'
     permissions:
       contents: read
 
@@ -126,7 +145,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: changes
-    if: needs.changes.outputs.frontend == 'true'
+    if: needs.changes.outputs.force_full_run == 'true' || needs.changes.outputs.frontend == 'true'
     permissions:
       contents: read
 
@@ -163,7 +182,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: changes
-    if: needs.changes.outputs.backend == 'true'
+    if: needs.changes.outputs.force_full_run == 'true' || needs.changes.outputs.backend == 'true'
     permissions:
       contents: read
 
