@@ -18,6 +18,8 @@ public class NotificationInboxResponse {
     private final LocalDateTime receivedAt;
     private final InboxTargetType targetType;
     private final Long targetId;
+    private final boolean canNavigate;
+    private final String targetPath;
 
     public NotificationInboxResponse(Long inboxId,
                                     NotificationType type,
@@ -25,7 +27,9 @@ public class NotificationInboxResponse {
                                     String content,
                                     LocalDateTime receivedAt,
                                     InboxTargetType targetType,
-                                    Long targetId) {
+                                    Long targetId,
+                                    boolean canNavigate,
+                                    String targetPath) {
         this.inboxId = inboxId;
         this.type = type;
         this.title = title;
@@ -33,17 +37,7 @@ public class NotificationInboxResponse {
         this.receivedAt = receivedAt;
         this.targetType = targetType;
         this.targetId = targetId;
-    }
-
-    public static NotificationInboxResponse from(NotificationInbox inbox) {
-        return new NotificationInboxResponse(
-                inbox.getInboxId(),
-                inbox.getNotification().getType(),
-                inbox.getNotification().getNotificationTitle(),
-                inbox.getNotification().getContent(),
-                inbox.getCreatedAt(),
-                inbox.getTargetType(),
-                inbox.getTargetId()
-        );
+        this.canNavigate = canNavigate;
+        this.targetPath = targetPath;
     }
 }

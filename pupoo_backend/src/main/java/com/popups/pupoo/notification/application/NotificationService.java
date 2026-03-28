@@ -4,6 +4,7 @@ package com.popups.pupoo.notification.application;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.event.persistence.EventRepository;
+import com.popups.pupoo.notice.persistence.NoticeRepository;
 import com.popups.pupoo.notification.domain.enums.InboxTargetType;
 import com.popups.pupoo.notification.domain.enums.NotificationChannel;
 import com.popups.pupoo.notification.domain.enums.NotificationType;
@@ -53,6 +54,7 @@ public class NotificationService {
     private final NotificationSendRepository notificationSendRepository;
     private final UserRepository userRepository;
     private final EventRepository eventRepository;
+    private final NoticeRepository noticeRepository;
     private final NotificationSender notificationSender;
     private final NotificationSseService notificationSseService;
 
@@ -62,6 +64,7 @@ public class NotificationService {
                                NotificationSendRepository notificationSendRepository,
                                UserRepository userRepository,
                                EventRepository eventRepository,
+                               NoticeRepository noticeRepository,
                                NotificationSender notificationSender,
                                NotificationSseService notificationSseService) {
         this.notificationRepository = notificationRepository;
@@ -70,6 +73,7 @@ public class NotificationService {
         this.notificationSendRepository = notificationSendRepository;
         this.userRepository = userRepository;
         this.eventRepository = eventRepository;
+        this.noticeRepository = noticeRepository;
         this.notificationSender = notificationSender;
         this.notificationSseService = notificationSseService;
     }
@@ -77,7 +81,7 @@ public class NotificationService {
     public NotificationListResponse getMyInbox(Long userId, Pageable pageable) {
         Page<NotificationInbox> page = notificationInboxRepository.findMyInbox(userId, pageable);
         List<NotificationInboxResponse> items = page.getContent().stream()
-                .map(NotificationInboxResponse::from)
+                .map(this::toInboxResponse)
                 .toList();
 
         return NotificationListResponse.of(
@@ -91,6 +95,37 @@ public class NotificationService {
 
     public long getUnreadCount(Long userId) {
         return notificationInboxRepository.countByUserId(userId);
+    }
+
+    private NotificationInboxResponse toInboxResponse(NotificationInbox inbox) {
+        String targetPath = resolveTargetPath(inbox.getTargetType(), inbox.getTargetId());
+        return new NotificationInboxResponse(
+                inbox.getInboxId(),
+                inbox.getNotification().getType(),
+                inbox.getNotification().getNotificationTitle(),
+                inbox.getNotification().getContent(),
+                inbox.getCreatedAt(),
+                inbox.getTargetType(),
+                inbox.getTargetId(),
+                targetPath != null,
+                targetPath
+        );
+    }
+
+    private String resolveTargetPath(InboxTargetType targetType, Long targetId) {
+        if (targetType == null || targetId == null) {
+            return null;
+        }
+        if (targetType == InboxTargetType.EVENT) {
+            return eventRepository.existsById(targetId) ? "/event/current" : null;
+        }
+        if (targetType == InboxTargetType.NOTICE) {
+            if (targetId <= 0 || !noticeRepository.existsById(targetId)) {
+                return null;
+            }
+            return "/community/notice/" + targetId;
+        }
+        return null;
     }
 
     @Transactional

@@ -3,6 +3,7 @@ package com.popups.pupoo.notification.application;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.event.persistence.EventRepository;
+import com.popups.pupoo.notice.persistence.NoticeRepository;
 import com.popups.pupoo.notification.persistence.NotificationInboxRepository;
 import com.popups.pupoo.notification.persistence.NotificationRepository;
 import com.popups.pupoo.notification.persistence.NotificationSendRepository;
@@ -33,6 +34,7 @@ class NotificationServiceTest {
                 mock(NotificationSendRepository.class),
                 mock(UserRepository.class),
                 mock(EventRepository.class),
+                mock(NoticeRepository.class),
                 mock(NotificationSender.class),
                 mock(NotificationSseService.class)
         );

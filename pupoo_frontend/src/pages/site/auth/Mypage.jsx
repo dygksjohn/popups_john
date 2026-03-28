@@ -1132,6 +1132,12 @@ function resolveNotificationTargetPath(targetType, targetId) {
   return null;
 }
 
+function getNotificationTargetPath(notification) {
+  if (!notification) return null;
+  if (notification.canNavigate === false) return null;
+  return notification.targetPath || resolveNotificationTargetPath(notification.targetType, notification.targetId);
+}
+
 function statusClass(status) {
   const key = String(status || "").toUpperCase();
   if (key === "APPLIED") return "applied";
@@ -1657,10 +1663,11 @@ export default function MyPage() {
         notification?.targetType,
         notification?.targetId,
       );
+      const targetPath = getNotificationTargetPath(notification) || fallbackPath;
 
       if (
         inboxId == null ||
-        !fallbackPath ||
+        !targetPath ||
         movingInboxIds.includes(inboxId)
       ) {
         return;
@@ -1673,9 +1680,9 @@ export default function MyPage() {
         // 이동은 클릭 API를 사용해 서버에서 읽음 처리 후 목적지 정보를 돌려받는다.
         const res = await notificationApi.click(inboxId);
         removeNotificationFromInbox(inboxId);
-        const targetPath =
-          resolveNotificationTargetPath(res?.targetType, res?.targetId) || fallbackPath;
-        if (targetPath) navigate(targetPath);
+        const nextTargetPath =
+          resolveNotificationTargetPath(res?.targetType, res?.targetId) || targetPath;
+        if (nextTargetPath) navigate(nextTargetPath);
       } catch (e) {
         setError(e?.message || "알림 이동에 실패했습니다.");
       } finally {
@@ -1805,9 +1812,7 @@ export default function MyPage() {
     const inboxId = noti?.inboxId;
     const isDeleting = deletingInboxIds.includes(inboxId);
     const isMoving = movingInboxIds.includes(inboxId);
-    const canMove = Boolean(
-      resolveNotificationTargetPath(noti?.targetType, noti?.targetId),
-    );
+    const canMove = Boolean(getNotificationTargetPath(noti));
 
     return (
       <div className="mp-item" key={inboxId || `${noti?.title}-${noti?.receivedAt}`}>

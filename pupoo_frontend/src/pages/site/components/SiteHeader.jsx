@@ -609,6 +609,12 @@ function resolveNotificationTargetPath(targetType, targetId) {
   return null;
 }
 
+function getNotificationTargetPath(notification) {
+  if (!notification) return null;
+  if (notification.canNavigate === false) return null;
+  return notification.targetPath || resolveNotificationTargetPath(notification.targetType, notification.targetId);
+}
+
 export default function PupooHeader() {
   const navigate = useNavigate();
   const { isAuthed, logout } = useAuth();
@@ -618,6 +624,8 @@ export default function PupooHeader() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifList, setNotifList] = useState([]);
   const [notifLoading, setNotifLoading] = useState(false);
+  const [deletingInboxIds, setDeletingInboxIds] = useState([]);
+  const [movingInboxIds, setMovingInboxIds] = useState([]);
   const notifRef = useRef(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedMenuKey, setExpandedMenuKey] = useState(null);
@@ -661,6 +669,8 @@ export default function PupooHeader() {
   }, [isAuthed, notifOpen]);
 
   const handleNotificationClick = async (notification) => {
+    const targetPath = getNotificationTargetPath(notification);
+    if (!targetPath || notification?.inboxId == null) return;
     try {
       const res = await notificationApi.click(notification.inboxId);
       setNotifList((prev) => prev.filter((item) => item.inboxId !== notification.inboxId));
@@ -669,12 +679,45 @@ export default function PupooHeader() {
         emitNotificationUnreadCount(next);
         return next;
       });
-      const targetPath = resolveNotificationTargetPath(res?.targetType, res?.targetId);
-      if (targetPath) navigate(targetPath);
+      const nextTargetPath =
+        resolveNotificationTargetPath(res?.targetType, res?.targetId) || targetPath;
+      if (nextTargetPath) navigate(nextTargetPath);
     } catch {
       // ignore click errors in header panel
     } finally {
       setNotifOpen(false);
+    }
+  };
+
+  const handleNotificationDelete = async (notification) => {
+    const inboxId = notification?.inboxId;
+    if (inboxId == null || deletingInboxIds.includes(inboxId)) return;
+
+    setDeletingInboxIds((prev) => [...prev, inboxId]);
+    try {
+      await notificationApi.delete(inboxId);
+      setNotifList((prev) => prev.filter((item) => item.inboxId !== inboxId));
+      setUnreadCount((prev) => {
+        const next = Math.max(0, (Number(prev) || 0) - 1);
+        emitNotificationUnreadCount(next);
+        return next;
+      });
+    } catch {
+      // ignore delete errors in header panel
+    } finally {
+      setDeletingInboxIds((prev) => prev.filter((id) => id !== inboxId));
+    }
+  };
+
+  const handleNotificationMove = async (notification) => {
+    const inboxId = notification?.inboxId;
+    if (inboxId == null || movingInboxIds.includes(inboxId)) return;
+
+    setMovingInboxIds((prev) => [...prev, inboxId]);
+    try {
+      await handleNotificationClick(notification);
+    } finally {
+      setMovingInboxIds((prev) => prev.filter((id) => id !== inboxId));
     }
   };
 
@@ -1058,22 +1101,31 @@ export default function PupooHeader() {
         .notif-item {
           display: flex;
           flex-direction: column;
-          gap: 3px;
+          gap: 8px;
           width: 100%;
           padding: 14px 20px;
-          background: none;
+          background: #fff;
           border: none;
           border-bottom: 1px solid #f5f5f5;
           text-align: left;
-          cursor: pointer;
           transition: background 0.15s;
           font-family: ${FONT};
         }
         .notif-item:hover {
-          background: #f8f9fa;
+          background: #fafafa;
         }
         .notif-item:last-of-type {
           border-bottom: none;
+        }
+        .notif-item-top {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 10px;
+        }
+        .notif-item-main {
+          min-width: 0;
+          flex: 1;
         }
         .notif-item-title {
           font-size: 13px;
@@ -1090,6 +1142,40 @@ export default function PupooHeader() {
           font-size: 11px;
           color: #aaa;
           margin-top: 2px;
+        }
+        .notif-item-actions {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          flex-shrink: 0;
+        }
+        .notif-action-btn {
+          border: none;
+          border-radius: 8px;
+          padding: 6px 10px;
+          font-size: 11px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: background 0.15s ease, color 0.15s ease;
+        }
+        .notif-action-btn.move {
+          background: #f0f9e4;
+          color: #7ab33e;
+        }
+        .notif-action-btn.move:hover:not(:disabled) {
+          background: #e3f3cf;
+        }
+        .notif-action-btn.delete {
+          background: #f8f9fc;
+          color: #9ca3af;
+        }
+        .notif-action-btn.delete:hover:not(:disabled) {
+          background: #fee2e2;
+          color: #dc2626;
+        }
+        .notif-action-btn:disabled {
+          opacity: 0.55;
+          cursor: not-allowed;
         }
         .notif-footer {
           padding: 10px 20px;
@@ -1236,16 +1322,35 @@ export default function PupooHeader() {
                           <div className="notif-empty">새 알림이 없습니다.</div>
                         ) : (
                           notifList.map((n) => (
-                            <button
-                              key={n.inboxId}
-                              className="notif-item"
-                              type="button"
-                              onClick={() => handleNotificationClick(n)}
-                            >
-                              <div className="notif-item-title">{n.title}</div>
-                              <div className="notif-item-content">{n.content}</div>
-                              <div className="notif-item-date">{fmtDate(n.receivedAt)}</div>
-                            </button>
+                            <div key={n.inboxId} className="notif-item">
+                              <div className="notif-item-top">
+                                <div className="notif-item-main">
+                                  <div className="notif-item-title">{n.title}</div>
+                                  <div className="notif-item-content">{n.content}</div>
+                                  <div className="notif-item-date">{fmtDate(n.receivedAt)}</div>
+                                </div>
+                                <div className="notif-item-actions">
+                                  {getNotificationTargetPath(n) ? (
+                                    <button
+                                      type="button"
+                                      className="notif-action-btn move"
+                                      onClick={() => handleNotificationMove(n)}
+                                      disabled={movingInboxIds.includes(n.inboxId) || deletingInboxIds.includes(n.inboxId)}
+                                    >
+                                      {movingInboxIds.includes(n.inboxId) ? "이동 중" : "이동"}
+                                    </button>
+                                  ) : null}
+                                  <button
+                                    type="button"
+                                    className="notif-action-btn delete"
+                                    onClick={() => handleNotificationDelete(n)}
+                                    disabled={movingInboxIds.includes(n.inboxId) || deletingInboxIds.includes(n.inboxId)}
+                                  >
+                                    {deletingInboxIds.includes(n.inboxId) ? "삭제 중" : "삭제"}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
                           ))
                         )}
                         <div className="notif-footer">최근 5개만 표시됩니다</div>
@@ -1357,11 +1462,35 @@ export default function PupooHeader() {
               <div className="notif-empty">새 알림이 없어요</div>
             ) : (
               notifList.map((n) => (
-                <button key={n.inboxId} className="notif-item" onClick={() => handleNotificationClick(n)}>
-                  <span className="notif-item-title">{n.title}</span>
-                  {n.content && <span className="notif-item-content">{n.content}</span>}
-                  <span className="notif-item-date">{fmtDate(n.receivedAt)}</span>
-                </button>
+                <div key={n.inboxId} className="notif-item">
+                  <div className="notif-item-top">
+                    <div className="notif-item-main">
+                      <span className="notif-item-title">{n.title}</span>
+                      {n.content && <span className="notif-item-content">{n.content}</span>}
+                      <span className="notif-item-date">{fmtDate(n.receivedAt)}</span>
+                    </div>
+                    <div className="notif-item-actions">
+                      {getNotificationTargetPath(n) ? (
+                        <button
+                          type="button"
+                          className="notif-action-btn move"
+                          onClick={() => handleNotificationMove(n)}
+                          disabled={movingInboxIds.includes(n.inboxId) || deletingInboxIds.includes(n.inboxId)}
+                        >
+                          {movingInboxIds.includes(n.inboxId) ? "이동 중" : "이동"}
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="notif-action-btn delete"
+                        onClick={() => handleNotificationDelete(n)}
+                        disabled={movingInboxIds.includes(n.inboxId) || deletingInboxIds.includes(n.inboxId)}
+                      >
+                        {deletingInboxIds.includes(n.inboxId) ? "삭제 중" : "삭제"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               ))
             )}
             <div className="notif-footer">최근 5개만 표시됩니다</div>
