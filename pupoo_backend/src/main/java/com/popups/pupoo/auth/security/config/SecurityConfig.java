@@ -100,6 +100,8 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.POST, "/api/auth/password-reset/request").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/auth/password-reset/verify-code").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/auth/password-reset/confirm").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/auth/sms/send").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/auth/sms/verify").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/auth/signup/**").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/auth/oauth/**").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/auth/oauth/**").permitAll()
