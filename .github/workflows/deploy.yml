@@ -205,10 +205,13 @@ jobs:
             local canonical_base="${APP_FRONTEND_BASE_URL%/}"
             local resolved="${value:-${canonical_base}${fallback_path}}"
 
-            resolved="${resolved//\{paymentId\}\}/\{paymentId\}}"
+            resolved="${resolved//\{paymentId\}\}/__PAYMENT_ID_TOKEN__}"
+            resolved="${resolved//\{paymentId\}/__PAYMENT_ID_TOKEN__}"
+            resolved="${resolved//\{paymentId/__PAYMENT_ID_TOKEN__}"
             while [[ "${resolved}" == *"}" ]]; do
               resolved="${resolved%\}}"
             done
+            resolved="${resolved//__PAYMENT_ID_TOKEN__/\{paymentId\}}"
 
             resolved="${resolved/https:\/\/pupoo.site/https:\/\/www.pupoo.site}"
             printf '%s' "${resolved}"

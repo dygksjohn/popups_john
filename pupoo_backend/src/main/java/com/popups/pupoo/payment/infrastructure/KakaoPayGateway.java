@@ -374,7 +374,8 @@ private PaymentTransaction findLatestTxForUpdate(Long paymentId) {
         String paymentIdText = String.valueOf(paymentId);
         String resolved = template.trim()
                 .replace("{paymentId}}", paymentIdText)
-                .replace("{paymentId}", paymentIdText);
+                .replace("{paymentId}", paymentIdText)
+                .replace("{paymentId", paymentIdText);
 
         boolean sanitized = false;
         while (resolved.endsWith("}")) {

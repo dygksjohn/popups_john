@@ -87,9 +87,9 @@ class KakaoPayGatewayTest {
                 "/online/v1/payment/ready",
                 "/online/v1/payment/approve",
                 "/online/v1/payment/cancel",
-                "https://pupoo.site/payment/approve?paymentId={paymentId}",
-                "https://pupoo.site/payment/cancel?paymentId={paymentId}",
-                "https://pupoo.site/payment/fail?paymentId={paymentId}"
+                "https://pupoo.site/payment/approve?paymentId={paymentId",
+                "https://pupoo.site/payment/cancel?paymentId={paymentId",
+                "https://pupoo.site/payment/fail?paymentId={paymentId"
         );
 
         when(txRepository.findLatestByPaymentIdForUpdate(any(), any())).thenReturn(List.of());
