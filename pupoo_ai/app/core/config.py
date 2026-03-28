@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     poster_default_width: int = 400
     poster_default_height: int = 847
     poster_storage_prefix: str = "posters/generated"
-    poster_timeout_seconds: float = 20.0
+    poster_timeout_seconds: float = 45.0
 
     # watsonx.ai 설정 (RAG용)
     watsonx_api_key: str = ""

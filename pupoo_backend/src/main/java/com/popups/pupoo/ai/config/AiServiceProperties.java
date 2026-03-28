@@ -11,7 +11,7 @@ public class AiServiceProperties {
     private String internalToken = "";
     private long connectTimeoutMs = 500L;
     private long responseTimeoutMs = 1500L;
-    private long posterResponseTimeoutMs = 30000L;
+    private long posterResponseTimeoutMs = 60000L;
     private long maxInMemorySizeBytes = 5L * 1024L * 1024L;
 
     public String getBaseUrl() {
