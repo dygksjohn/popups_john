@@ -153,21 +153,35 @@ class GroundedAnswerService:
         notices = await self._backend_client.list_notices(keyword=keyword, size=5)
         if not notices:
             return None
-        return sorted(
+        return max(
             notices,
             key=lambda item: (
+                self._score_notice_match(message, keyword, item),
                 bool(item.get("pinned")),
                 str(item.get("updatedAt") or ""),
             ),
-            reverse=True,
-        )[0]
+        )
 
     async def _select_faq(self, message: str) -> dict[str, Any] | None:
         keyword = await self._extract_keyword(message)
         faqs = await self._backend_client.list_faqs(keyword=keyword, size=5)
         if not faqs:
             return None
-        return await self._backend_client.get_faq(int(faqs[0]["postId"]))
+        selected = max(
+            faqs,
+            key=lambda item: (
+                self._score_text_match(
+                    message,
+                    keyword,
+                    (
+                        str(item.get("title") or ""),
+                        str(item.get("createdAt") or ""),
+                    ),
+                ),
+                str(item.get("createdAt") or ""),
+            ),
+        )
+        return await self._backend_client.get_faq(int(selected["postId"]))
 
     async def _extract_keyword(self, message: str) -> str | None:
         events = await self._backend_client.list_events(size=30)
@@ -207,6 +221,51 @@ class GroundedAnswerService:
         else:
             filtered.sort(key=lambda item: _parse_datetime(item.get("endAt")) or datetime.max)
         return filtered[0]
+
+    def _score_notice_match(self, message: str, keyword: str | None, notice: dict[str, Any]) -> int:
+        return self._score_text_match(
+            message,
+            keyword,
+            (
+                str(notice.get("title") or ""),
+                str(notice.get("content") or ""),
+                str(notice.get("eventName") or ""),
+            ),
+        )
+
+    def _score_text_match(
+        self,
+        message: str,
+        keyword: str | None,
+        fields: tuple[str, ...],
+    ) -> int:
+        normalized_message = _normalize(message)
+        score = 0
+        candidates = [candidate for candidate in (keyword, *self._message_terms(message)) if candidate]
+        weighted_fields = tuple(enumerate(fields))
+
+        for index, field in weighted_fields:
+            normalized_field = _normalize(field)
+            if not normalized_field:
+                continue
+
+            for candidate in candidates:
+                normalized_candidate = _normalize(candidate)
+                if not normalized_candidate:
+                    continue
+                if normalized_candidate in normalized_field:
+                    score += max(1, 6 - index * 2)
+                if normalized_field and normalized_field in normalized_message:
+                    score += 2
+
+        return score
+
+    def _message_terms(self, message: str) -> tuple[str, ...]:
+        terms = []
+        for candidate in _KEYWORD_CANDIDATES:
+            if candidate.lower() in message.lower():
+                terms.append(candidate)
+        return tuple(dict.fromkeys(terms))
 
     def _build_user_event_response(self, event: dict[str, Any], *, prefer_current: bool) -> str:
         status = str(event.get("status") or "")

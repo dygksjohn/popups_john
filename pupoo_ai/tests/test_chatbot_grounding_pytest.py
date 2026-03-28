@@ -120,3 +120,42 @@ async def test_admin_chat_uses_grounding_before_low_confidence_message():
     assert "\uc778\ucc9c \ubc18\ub824\ub3d9\ubb3c \ucd95\uc81c" in response.message
     assert "\ucd94\ucc9c \ud3ec\uc778\ud2b8" in response.message
     mocked_invoke.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_user_notice_query_prefers_direct_keyword_match():
+    request = ChatRequest(message="\uc8fc\ucc28 \uad00\ub828 \uacf5\uc9c0 \uc54c\ub824\uc918")
+
+    with patch(
+        "pupoo_ai.app.features.chatbot.service.chatbot_service.BackendApiClient.list_events",
+        new=AsyncMock(return_value=[]),
+    ), patch(
+        "pupoo_ai.app.features.chatbot.service.chatbot_service.BackendApiClient.list_notices",
+        new=AsyncMock(
+            return_value=[
+                {
+                    "noticeId": 6,
+                    "title": "\uae34\uae09 \uacf5\uc9c0 \uc0ac\ud56d",
+                    "content": "\ud604\uc7a5 \uacb0\uc81c \uc81c\ud55c \uc548\ub0b4",
+                    "pinned": True,
+                    "updatedAt": "2026-03-27T06:23:54",
+                    "eventName": "\ucf54\ub9ac\uc544 \ud3ab \uc5d1\uc2a4\ud3ec",
+                },
+                {
+                    "noticeId": 7,
+                    "title": "\uc8fc\ucc28 \uad00\ub828 \uc548\ub0b4",
+                    "content": "\uc8fc\ucc28\uc7a5\uc774 \ud63c\uc7a1\ud558\ub2c8 \ub300\uc911\uad50\ud1b5 \uc774\uc6a9\uc744 \uad8c\uc7a5\ud569\ub2c8\ub2e4.",
+                    "pinned": True,
+                    "updatedAt": "2026-03-13T05:49:49",
+                    "eventName": None,
+                },
+            ]
+        ),
+    ), patch(
+        "pupoo_ai.app.features.chatbot.service.chatbot_service.invoke_bedrock",
+        new=AsyncMock(return_value="LLM fallback"),
+    ) as mocked_invoke:
+        response = await chat(request)
+
+    assert "\uc8fc\ucc28 \uad00\ub828 \uc548\ub0b4" in response.message
+    mocked_invoke.assert_not_awaited()
