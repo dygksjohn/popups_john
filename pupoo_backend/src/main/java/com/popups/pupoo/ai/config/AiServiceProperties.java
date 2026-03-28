@@ -9,7 +9,7 @@ public class AiServiceProperties {
 
     private String baseUrl = "http://localhost:8000";
     private String internalToken = "";
-    private long connectTimeoutMs = 500L;
+    private long connectTimeoutMs = 2000L;
     private long responseTimeoutMs = 1500L;
     private long posterResponseTimeoutMs = 60000L;
     private long maxInMemorySizeBytes = 5L * 1024L * 1024L;
