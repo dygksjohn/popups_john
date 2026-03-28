@@ -171,6 +171,7 @@ class LightGbmCongestionRegistry:
         self._lock = Lock()
         self._loaded = False
         self._artifacts: dict[str, dict[str, Any]] = {}
+        self._load_errors: dict[str, str] = {}
 
     def predict(
         self,
@@ -233,6 +234,32 @@ class LightGbmCongestionRegistry:
             model_version=model_version,
         )
 
+    def load_status(self) -> dict[str, Any]:
+        if not self._enabled:
+            return {
+                "enabled": False,
+                "targets": {
+                    target_type: {
+                        "artifactPresent": False,
+                        "loaded": False,
+                    }
+                    for target_type in SUPPORTED_TARGET_TYPES
+                },
+            }
+
+        self._ensure_loaded()
+        targets: dict[str, dict[str, bool]] = {}
+        for target_type in SUPPORTED_TARGET_TYPES:
+            file_path = self._model_dir / f"{target_type.lower()}_congestion_model.joblib"
+            targets[target_type] = {
+                "artifactPresent": file_path.exists(),
+                "loaded": target_type in self._artifacts,
+            }
+        return {
+            "enabled": True,
+            "targets": targets,
+        }
+
     def _ensure_loaded(self) -> None:
         if self._loaded:
             return
@@ -242,6 +269,7 @@ class LightGbmCongestionRegistry:
                 return
 
             loaded: dict[str, dict[str, Any]] = {}
+            load_errors: dict[str, str] = {}
             for target_type in SUPPORTED_TARGET_TYPES:
                 file_path = self._model_dir / f"{target_type.lower()}_congestion_model.joblib"
                 if not file_path.exists():
@@ -250,8 +278,10 @@ class LightGbmCongestionRegistry:
                     payload = joblib.load(file_path)
                     if isinstance(payload, dict):
                         loaded[target_type] = payload
-                except Exception:
+                except Exception as exc:
+                    load_errors[target_type] = exc.__class__.__name__
                     logger.exception("Failed to load congestion model artifact. path=%s", file_path)
 
             self._artifacts = loaded
+            self._load_errors = load_errors
             self._loaded = True

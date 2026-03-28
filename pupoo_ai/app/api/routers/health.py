@@ -12,6 +12,7 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
 from pupoo_ai.app.core.config import settings
+from pupoo_ai.app.features.congestion.service.prediction_service import MODEL_REGISTRY
 from pupoo_ai.app.infrastructure.rds import check_connection, is_rds_configured
 
 router = APIRouter(tags=["health"])
@@ -38,10 +39,31 @@ async def readiness_check():
                 "configured": False,
                 "reachable": False,
             },
+            "congestionPrediction": {
+                "configured": bool(settings.congestion_model_enabled),
+                "eventLoaded": False,
+                "programLoaded": False,
+            },
         },
     }
 
+    model_status = MODEL_REGISTRY.load_status()
+    if model_status.get("enabled"):
+        targets = model_status.get("targets") or {}
+        event_loaded = bool((targets.get("EVENT") or {}).get("loaded"))
+        program_loaded = bool((targets.get("PROGRAM") or {}).get("loaded"))
+        payload["dependencies"]["congestionPrediction"] = {
+            "configured": True,
+            "eventLoaded": event_loaded,
+            "programLoaded": program_loaded,
+        }
+        if not event_loaded:
+            payload["status"] = "degraded"
+            payload["reason"] = "congestion_event_model_unavailable"
+
     if not is_rds_configured():
+        if payload["status"] == "degraded":
+            return JSONResponse(status_code=503, content=payload)
         return payload
 
     try:
@@ -50,6 +72,8 @@ async def readiness_check():
             "configured": bool(database_status.get("configured")),
             "reachable": bool(database_status.get("reachable")),
         }
+        if payload["status"] == "degraded":
+            return JSONResponse(status_code=503, content=payload)
         return payload
     except Exception as exc:
         payload["status"] = "degraded"

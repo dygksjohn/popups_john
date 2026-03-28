@@ -311,6 +311,24 @@ jobs:
             ${{ steps.ecr.outputs.registry }}/${{ vars.AI_ECR_REPOSITORY }}:${{ github.sha }}
             ${{ steps.ecr.outputs.registry }}/${{ vars.AI_ECR_REPOSITORY }}:latest
 
+      - name: Smoke test AI image congestion runtime
+        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_image == 'true'
+        run: |
+          set -eo pipefail
+          AI_IMAGE="${{ steps.ecr.outputs.registry }}/${{ vars.AI_ECR_REPOSITORY }}:${{ github.sha }}"
+          docker pull "$AI_IMAGE"
+          docker run --rm "$AI_IMAGE" sh -lc 'python - <<'"'"'PY'"'"'
+          from pupoo_ai.app.features.congestion.inference.lightgbm_registry import LightGbmCongestionRegistry
+
+          registry = LightGbmCongestionRegistry(enabled=True)
+          status = registry.load_status()
+          print(status)
+
+          targets = status.get("targets") or {}
+          if not (targets.get("EVENT") or {}).get("loaded"):
+              raise SystemExit("EVENT congestion model failed to load inside the deployed image")
+          PY'
+
       - name: Sync backend runtime secrets
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
