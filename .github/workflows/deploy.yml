@@ -53,7 +53,7 @@ jobs:
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
-          RUN_AI_TRAIN_INPUT: ${{ github.event.inputs.run_ai_train || '' }}
+          RUN_AI_TRAIN_INPUT: ${{ github.event.inputs.run_ai_train }}
         run: |
           if [[ "${EVENT_NAME}" == "workflow_dispatch" || "${EVENT_NAME}" == "schedule" ]]; then
             echo "force_full_run=true" >> "$GITHUB_OUTPUT"
@@ -62,11 +62,18 @@ jobs:
           fi
 
           if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
-            if [[ "${RUN_AI_TRAIN_INPUT}" == "false" ]]; then
-              echo "force_ai_train=false" >> "$GITHUB_OUTPUT"
-            else
-              echo "force_ai_train=true" >> "$GITHUB_OUTPUT"
-            fi
+            case "${RUN_AI_TRAIN_INPUT}" in
+              false)
+                echo "force_ai_train=false" >> "$GITHUB_OUTPUT"
+                ;;
+              true|"")
+                echo "force_ai_train=true" >> "$GITHUB_OUTPUT"
+                ;;
+              *)
+                echo "Unexpected run_ai_train value: ${RUN_AI_TRAIN_INPUT}" >&2
+                exit 1
+                ;;
+            esac
           else
             echo "force_ai_train=false" >> "$GITHUB_OUTPUT"
           fi
