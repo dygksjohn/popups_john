@@ -26,6 +26,10 @@ public class TokenService {
         return jwtProvider.createAccessToken(userId, roleName, accessTtlSeconds);
     }
 
+    public String createAccessToken(Long userId, String roleName, long ttlSeconds) {
+        return jwtProvider.createAccessToken(userId, roleName, ttlSeconds);
+    }
+
     public String createRefreshToken(Long userId) {
         return jwtProvider.createRefreshToken(userId, refreshTtlSeconds);
     }

@@ -104,4 +104,24 @@ public class SecurityUtil {
         }
         return false;
     }
+
+    public String currentRoleName() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
+        for (GrantedAuthority authority : auth.getAuthorities()) {
+            if (authority == null) {
+                continue;
+            }
+
+            String value = authority.getAuthority();
+            if (value != null && value.startsWith("ROLE_") && value.length() > 5) {
+                return value.substring(5);
+            }
+        }
+
+        throw new BusinessException(ErrorCode.INVALID_REQUEST);
+    }
 }

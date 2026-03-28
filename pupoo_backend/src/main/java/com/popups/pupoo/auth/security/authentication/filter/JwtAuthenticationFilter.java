@@ -6,6 +6,7 @@ import com.popups.pupoo.auth.token.JwtProvider;
 import com.popups.pupoo.common.api.ApiResponse;
 import com.popups.pupoo.common.api.ErrorResponse;
 import com.popups.pupoo.common.exception.ErrorCode;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,6 +23,7 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String NOTIFICATION_STREAM_PATH = "/api/notifications/stream";
+    private static final String NOTIFICATION_STREAM_COOKIE_NAME = "notification_stream_token";
 
     private final JwtProvider jwtProvider;
 
@@ -71,16 +73,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     /**
      * Bearer 토큰 추출
      * - Authorization 헤더 없으면 null (anonymous 처리)
-     * - SSE 스트림은 access_token query 파라미터를 보조로 허용
+     * - SSE 스트림은 전용 HttpOnly cookie를 보조로 허용
      * - 헤더가 있는데 형식이 다르면 strict 401
      */
     private String resolveBearerToken(HttpServletRequest request) {
         String header = request.getHeader("Authorization");
 
         if (header == null || header.isBlank()) {
-            String queryToken = resolveSseAccessToken(request);
-            if (queryToken != null) {
-                return queryToken;
+            String streamToken = resolveNotificationStreamToken(request);
+            if (streamToken != null) {
+                return streamToken;
             }
             return null;
         }
@@ -97,18 +99,28 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return token;
     }
 
-    // EventSource는 Authorization 헤더를 붙일 수 없어 SSE 경로에 한해 query token을 허용한다.
-    private String resolveSseAccessToken(HttpServletRequest request) {
+    private String resolveNotificationStreamToken(HttpServletRequest request) {
         if (!NOTIFICATION_STREAM_PATH.equals(request.getRequestURI())) {
             return null;
         }
 
-        String token = request.getParameter("access_token");
-        if (token == null || token.isBlank()) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) {
             return null;
         }
 
-        return token.trim();
+        for (Cookie cookie : cookies) {
+            if (!NOTIFICATION_STREAM_COOKIE_NAME.equals(cookie.getName())) {
+                continue;
+            }
+
+            String token = cookie.getValue();
+            if (token != null && !token.isBlank()) {
+                return token.trim();
+            }
+        }
+
+        return null;
     }
 
     private void writeUnauthorized(HttpServletResponse response, HttpServletRequest request) throws IOException {

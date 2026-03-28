@@ -4,10 +4,12 @@ package com.popups.pupoo.notification.api;
 import com.popups.pupoo.auth.security.util.SecurityUtil;
 import com.popups.pupoo.common.api.ApiResponse;
 import com.popups.pupoo.notification.application.NotificationSseService;
+import com.popups.pupoo.notification.application.NotificationStreamTokenService;
 import com.popups.pupoo.notification.application.NotificationService;
 import com.popups.pupoo.notification.dto.NotificationListResponse;
 import com.popups.pupoo.notification.dto.NotificationResponse;
 import com.popups.pupoo.notification.dto.NotificationSettingsResponse;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.MediaType;
@@ -29,14 +31,28 @@ public class NotificationController {
 
     private final NotificationService notificationService;
     private final NotificationSseService notificationSseService;
+    private final NotificationStreamTokenService notificationStreamTokenService;
     private final SecurityUtil securityUtil;
 
     public NotificationController(NotificationService notificationService,
                                   NotificationSseService notificationSseService,
+                                  NotificationStreamTokenService notificationStreamTokenService,
                                   SecurityUtil securityUtil) {
         this.notificationService = notificationService;
         this.notificationSseService = notificationSseService;
+        this.notificationStreamTokenService = notificationStreamTokenService;
         this.securityUtil = securityUtil;
+    }
+
+    /**
+     * 로그인 사용자의 알림 SSE 연결을 연다.
+     */
+    @PostMapping("/stream/session")
+    public ApiResponse<String> prepareStreamSession(HttpServletResponse response) {
+        Long userId = securityUtil.currentUserId();
+        String roleName = securityUtil.currentRoleName();
+        notificationStreamTokenService.issueCookie(response, userId, roleName);
+        return ApiResponse.success("ok");
     }
 
     /**
