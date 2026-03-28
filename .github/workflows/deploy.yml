@@ -199,6 +199,21 @@ jobs:
           set -eo pipefail
           umask 077
           trap 'rm -f /tmp/pupoo-backend-secret-patch.yaml' EXIT
+          sanitize_frontend_url_template() {
+            local value="$1"
+            local fallback_path="$2"
+            local canonical_base="${APP_FRONTEND_BASE_URL%/}"
+            local resolved="${value:-${canonical_base}${fallback_path}}"
+
+            resolved="${resolved//\{paymentId\}\}/\{paymentId\}}"
+            while [[ "${resolved}" == *"}" ]]; do
+              resolved="${resolved%\}}"
+            done
+
+            resolved="${resolved/https:\/\/pupoo.site/https:\/\/www.pupoo.site}"
+            printf '%s' "${resolved}"
+          }
+
           if [ -z "${OPENAI_API_KEY}" ]; then
             echo "OPENAI_API_KEY secret is required"
             exit 1
@@ -235,9 +250,9 @@ jobs:
             echo "VERIFICATION_EMAIL_BASE_URL variable is required"
             exit 1
           fi
-          KAKAOPAY_APPROVAL_URL="${KAKAOPAY_APPROVAL_URL:-${APP_FRONTEND_BASE_URL}/payment/approve?paymentId={paymentId}}"
-          KAKAOPAY_CANCEL_URL="${KAKAOPAY_CANCEL_URL:-${APP_FRONTEND_BASE_URL}/payment/cancel?paymentId={paymentId}}"
-          KAKAOPAY_FAIL_URL="${KAKAOPAY_FAIL_URL:-${APP_FRONTEND_BASE_URL}/payment/fail?paymentId={paymentId}}"
+          KAKAOPAY_APPROVAL_URL="$(sanitize_frontend_url_template "${KAKAOPAY_APPROVAL_URL:-}" "/payment/approve?paymentId={paymentId}")"
+          KAKAOPAY_CANCEL_URL="$(sanitize_frontend_url_template "${KAKAOPAY_CANCEL_URL:-}" "/payment/cancel?paymentId={paymentId}")"
+          KAKAOPAY_FAIL_URL="$(sanitize_frontend_url_template "${KAKAOPAY_FAIL_URL:-}" "/payment/fail?paymentId={paymentId}")"
 
           cat > /tmp/pupoo-backend-secret-patch.yaml <<EOF
           stringData:

@@ -33,6 +33,7 @@ import jakarta.servlet.http.HttpServletRequest;
 public class KakaoPayGateway implements PaymentGateway {
 
     private static final Logger log = LoggerFactory.getLogger(KakaoPayGateway.class);
+    private static final String CANONICAL_CALLBACK_ORIGIN = "https://www.pupoo.site";
     private static final Set<String> SUPPORTED_CALLBACK_ORIGINS = Set.of(
             "https://pupoo.site",
             "https://www.pupoo.site"
@@ -386,6 +387,8 @@ private PaymentTransaction findLatestTxForUpdate(Long paymentId) {
                     label, template, resolved);
         }
 
+        resolved = canonicalizeCallbackUrl(label, resolved);
+
         String preferredOrigin = normalizeSupportedCallbackOrigin(callbackOrigin);
         if (preferredOrigin == null) {
             return resolved;
@@ -448,9 +451,35 @@ private PaymentTransaction findLatestTxForUpdate(Long paymentId) {
                 return null;
             }
             String normalized = uri.getScheme() + "://" + uri.getAuthority();
-            return SUPPORTED_CALLBACK_ORIGINS.contains(normalized) ? normalized : null;
+            return SUPPORTED_CALLBACK_ORIGINS.contains(normalized) ? CANONICAL_CALLBACK_ORIGIN : null;
         } catch (IllegalArgumentException e) {
             return null;
+        }
+    }
+
+    private String canonicalizeCallbackUrl(String label, String callbackUrl) {
+        try {
+            URI callbackUri = URI.create(callbackUrl);
+            if (callbackUri.getScheme() == null || callbackUri.getAuthority() == null) {
+                return callbackUrl;
+            }
+
+            String callbackOrigin = callbackUri.getScheme() + "://" + callbackUri.getAuthority();
+            if (!SUPPORTED_CALLBACK_ORIGINS.contains(callbackOrigin)) {
+                return callbackUrl;
+            }
+
+            URI canonicalUri = URI.create(CANONICAL_CALLBACK_ORIGIN);
+            return new URI(
+                    canonicalUri.getScheme(),
+                    canonicalUri.getAuthority(),
+                    callbackUri.getPath(),
+                    callbackUri.getQuery(),
+                    callbackUri.getFragment()
+            ).toString();
+        } catch (IllegalArgumentException | URISyntaxException e) {
+            log.warn("[KakaoPay][CONFIG] failed to canonicalize {} callbackUrl={}", label, callbackUrl, e);
+            return callbackUrl;
         }
     }
 
