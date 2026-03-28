@@ -7,6 +7,7 @@ import {
   clearAllSocialJoinState,
   setSocialJoinState,
 } from "./socialJoinStorage";
+import { resolveGoogleRedirectUri } from "./googleRedirectUri";
 
 const GOOGLE_CODE_GUARD_KEY = "google_oauth_code_guard";
 
@@ -48,7 +49,7 @@ export default function GoogleCallback() {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
-  const redirectUri = `${window.location.origin}/auth/google/callback`;
+  const redirectUri = resolveGoogleRedirectUri();
 
   const resolvePostLoginRedirect = () => {
     const target = sessionStorage.getItem("post_login_redirect") || "/";

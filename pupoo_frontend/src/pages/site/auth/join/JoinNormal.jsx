@@ -4,6 +4,7 @@ import { authApi } from "../api/authApi";
 import { tokenStore } from "../../../../app/http/tokenStore";
 import { useAuth } from "../AuthProvider";
 import { petApi } from "../../../../features/pet/api/petApi";
+import { userApi } from "../../../../features/user/api/userApi";
 import { getSmsRequestErrorMessage, normalizeDigits, toKoreanPhoneE164 } from "../../../../features/auth/utils/smsAuth";
 import {
   ClipboardCheck, PenLine, Smartphone, Mail,
@@ -552,6 +553,8 @@ export default function JoinNormal() {
   const [emailCode, setEmailCode] = useState("");
   const [emailRequestMessage, setEmailRequestMessage] = useState("");
   const [otpCooldown, setOtpCooldown] = useState(0);
+  const [nicknameChecked, setNicknameChecked] = useState(false);
+  const [nicknameCheckMsg, setNicknameCheckMsg] = useState("");
 
   useEffect(() => {
     if (otpCooldown <= 0) return;
@@ -559,7 +562,14 @@ export default function JoinNormal() {
     return () => clearInterval(t);
   }, [otpCooldown]);
 
-  const handleFormChange = (e) => { const { name, value } = e.target; setForm((p) => ({ ...p, [name]: value })); };
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+    setForm((p) => ({ ...p, [name]: value }));
+    if (name === "nickname") {
+      setNicknameChecked(false);
+      setNicknameCheckMsg("");
+    }
+  };
   const handleNumberOnlyChange = (e) => { const { name, value } = e.target; setForm((p) => ({ ...p, [name]: value.replace(/[^0-9]/g, "") })); };
 
   const openPostcode = () => {
@@ -607,6 +617,33 @@ export default function JoinNormal() {
     setForm((p) => ({ ...p, email: socialState.email ?? p.email, nickname: socialState.nickname ?? p.nickname }));
   }, [isSocial, socialState]);
 
+  const checkNickname = async () => {
+    const value = (form.nickname || "").trim();
+    if (!value) {
+      setNicknameChecked(false);
+      setNicknameCheckMsg("닉네임을 입력해 주세요.");
+      return false;
+    }
+
+    try {
+      const available = await userApi.checkNickname(value);
+      const ok = Boolean(available);
+      setNicknameChecked(ok);
+      setNicknameCheckMsg(
+        ok ? "사용 가능한 닉네임입니다." : "이미 사용 중인 닉네임입니다.",
+      );
+      return ok;
+    } catch (error) {
+      const message =
+        error?.response?.data?.message ??
+        error?.message ??
+        "닉네임 중복 확인에 실패했습니다.";
+      setNicknameChecked(false);
+      setNicknameCheckMsg(message);
+      return false;
+    }
+  };
+
   // Filter out Network Error and technical messages from user-facing errors
   const setUserError = (msg) => {
     const s = String(msg || "");
@@ -620,6 +657,11 @@ export default function JoinNormal() {
     if (loading) return;
     if (otpCooldown > 0) throw new Error(`인증번호 재요청까지 ${otpCooldown}초 남았습니다.`);
     if (!phoneMobileDigits) throw new Error("휴대전화 번호를 완성해주세요.");
+    if (!(form.nickname || "").trim()) throw new Error("닉네임을 입력하세요.");
+    if (!nicknameChecked) {
+      const ok = await checkNickname();
+      if (!ok) throw new Error("사용 가능한 닉네임을 입력해 주세요.");
+    }
     if (!isSocial) {
       if (!form.email.trim()) throw new Error("이메일을 입력하세요.");
       if (!form.password) throw new Error("비밀번호를 입력하세요.");
@@ -899,6 +941,43 @@ export default function JoinNormal() {
                 <div className="field-body">
                   <input className="fi" type="email" name="email" value={form.email} onChange={handleFormChange} placeholder="이메일 주소 입력" disabled={loading} />
                   <HintBanner icon={KeyRound}>이메일이 로그인 아이디로 사용됩니다</HintBanner>
+                </div>
+              </div>
+
+              <div className="field">
+                <label className="field-label">닉네임 <span className="req">*</span></label>
+                <div className="field-body">
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <input
+                      className="fi"
+                      type="text"
+                      name="nickname"
+                      value={form.nickname}
+                      onChange={handleFormChange}
+                      placeholder="사용할 닉네임 입력"
+                      disabled={loading}
+                      style={{ flex: 1 }}
+                    />
+                    <button
+                      type="button"
+                      className="btn-addr"
+                      onClick={checkNickname}
+                      disabled={loading}
+                      style={{ padding: "0 20px" }}
+                    >
+                      중복확인
+                    </button>
+                  </div>
+                  {nicknameCheckMsg ? (
+                    <HintBanner
+                      icon={nicknameChecked ? CheckCircle2 : AlertCircle}
+                      variant={nicknameChecked ? "success" : "warn"}
+                    >
+                      {nicknameCheckMsg}
+                    </HintBanner>
+                  ) : (
+                    <HintBanner icon={Info}>커뮤니티와 참가자 화면에 표시될 닉네임입니다.</HintBanner>
+                  )}
                 </div>
               </div>
 

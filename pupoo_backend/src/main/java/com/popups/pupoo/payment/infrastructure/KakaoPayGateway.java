@@ -115,9 +115,9 @@ private PaymentTransaction findLatestTxForUpdate(Long paymentId) {
         }
 
         // URL 확정 (paymentId 치환)
-        String approvalUrl = props.approvalUrl().replace("{paymentId}", String.valueOf(payment.getPaymentId()));
-        String cancelUrl = props.cancelUrl().replace("{paymentId}", String.valueOf(payment.getPaymentId()));
-        String failUrl = props.failUrl().replace("{paymentId}", String.valueOf(payment.getPaymentId()));
+        String approvalUrl = resolveCallbackUrl("approvalUrl", props.approvalUrl(), payment.getPaymentId());
+        String cancelUrl = resolveCallbackUrl("cancelUrl", props.cancelUrl(), payment.getPaymentId());
+        String failUrl = resolveCallbackUrl("failUrl", props.failUrl(), payment.getPaymentId());
 
         // === 요청값 기본 검증(카카오가 500으로 뭉개는 케이스 예방) ===
         // 기능: 결제 요청값 검증
@@ -352,6 +352,30 @@ private PaymentTransaction findLatestTxForUpdate(Long paymentId) {
      * 카카오 API가 정수 금액을 요구하는 경우가 많아서 방어적으로 처리.
      * - 소수점이 들어오면 예외로 막아버림(정책). 필요하면 반올림/절삭 정책으로 바꿔.
      */
+    private String resolveCallbackUrl(String label, String template, Long paymentId) {
+        if (template == null || template.isBlank()) {
+            throw new BusinessException(ErrorCode.PAYMENT_PG_ERROR, "KakaoPay config invalid: " + label + " blank");
+        }
+
+        String paymentIdText = String.valueOf(paymentId);
+        String resolved = template.trim()
+                .replace("{paymentId}}", paymentIdText)
+                .replace("{paymentId}", paymentIdText);
+
+        boolean sanitized = false;
+        while (resolved.endsWith("}")) {
+            resolved = resolved.substring(0, resolved.length() - 1);
+            sanitized = true;
+        }
+
+        if (sanitized) {
+            log.warn("[KakaoPay][CONFIG] sanitized malformed {} template. original={}, resolved={}",
+                    label, template, resolved);
+        }
+
+        return resolved;
+    }
+
     private int toIntAmount(BigDecimal amount) {
         // 기능: 금액 검증
         if (amount == null) throw new BusinessException(ErrorCode.VALIDATION_FAILED, "amount is required");
