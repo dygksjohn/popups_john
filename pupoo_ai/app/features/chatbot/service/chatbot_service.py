@@ -54,9 +54,9 @@ def _build_messages(request: ChatRequest) -> list[dict]:
 
 
 async def _user_chat(request: ChatRequest) -> ChatResponse:
-    grounded_reply = await GroundedAnswerService(BackendApiClient()).answer_user(request.message)
+    grounded_reply = await GroundedAnswerService(BackendApiClient()).answer_user_structured(request)
     if grounded_reply is not None:
-        return ChatResponse(message=grounded_reply, actions=[])
+        return grounded_reply
 
     reply = await invoke_bedrock(_build_messages(request), system_prompt=USER_SYSTEM_PROMPT)
     reply_text = str(reply or "").strip() or USER_FALLBACK_MESSAGE
