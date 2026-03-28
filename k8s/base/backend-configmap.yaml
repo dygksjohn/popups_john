@@ -6,6 +6,10 @@ metadata:
 data:
   SPRING_PROFILES_ACTIVE: "prod"
   SERVER_PORT: "8080"
+  SPRING_DATA_REDIS_HOST: "pupoo-redis"
+  SPRING_DATA_REDIS_PORT: "6379"
+  SPRING_DATA_REDIS_TIMEOUT: "2s"
+  SPRING_DATA_REDIS_SSL_ENABLED: "false"
   AI_SERVICE_BASE_URL: "http://pupoo-ai:80"
   AI_MODERATION_ENABLED: "true"
   # Spring property: ai.moderation.base-url=${AI_MODERATION_BASE_URL:...}
