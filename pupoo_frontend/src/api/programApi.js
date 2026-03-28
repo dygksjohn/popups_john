@@ -1,12 +1,12 @@
 // src/api/programApi.js
 // ── pupoo 실제 백엔드 기반 프로그램 API ──
 import { axiosInstance } from "../app/http/axiosInstance";
+import { tokenStore } from "../app/http/tokenStore";
 
 /* ── 관리자 토큰 관리 ── */
-const ADMIN_TOKEN_KEY = "pupoo_admin_token";
 
 function adminAuthHeaders() {
-  const token = localStorage.getItem(ADMIN_TOKEN_KEY);
+  const token = tokenStore.getAdminAccessToken();
   if (!token) return {};
   const headers = { Authorization: `Bearer ${token}` };
   return headers;

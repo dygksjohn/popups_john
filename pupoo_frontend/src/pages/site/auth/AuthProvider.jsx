@@ -26,7 +26,7 @@ export function AuthProvider({ children }) {
       bootstrappingRef.current = true;
 
       try {
-        const access = tokenStore.getAccess();
+        const access = tokenStore.getAccessToken();
         if (access) {
           setIsAuthed(true);
           return;
@@ -63,10 +63,15 @@ export function AuthProvider({ children }) {
     // 설명: focus/visibility 이벤트는 화면이 다시 활성화되는 시점에 메모리 상태를 최신 토큰 기준으로 덮어쓴다.
     // 흐름: 창 활성화 감지 -> tokenStore 재확인 -> 인증 상태 재반영.
     const onFocus = () => {
-      if (tokenStore.getAccess()) setIsAuthed(true);
+      if (tokenStore.getAccessToken() || tokenStore.hasSessionHint()) {
+        setIsAuthed(true);
+      }
     };
     const onVisibility = () => {
-      if (document.visibilityState === "visible" && tokenStore.getAccess()) {
+      if (
+        document.visibilityState === "visible" &&
+        (tokenStore.getAccessToken() || tokenStore.hasSessionHint())
+      ) {
         setIsAuthed(true);
       }
     };
@@ -84,7 +89,9 @@ export function AuthProvider({ children }) {
     // 설명: 로그인, 로그아웃, refresh 재발급이 어디서 발생하든 같은 인증 플래그를 공유한다.
     // 흐름: AUTH_CHANGE_EVENT 수신 -> access token 존재 여부 확인 -> isAuthed 갱신.
     const syncAuthState = () => {
-      setIsAuthed(Boolean(tokenStore.getAccess()));
+      setIsAuthed(
+        Boolean(tokenStore.getAccessToken() || tokenStore.hasSessionHint()),
+      );
     };
 
     window.addEventListener(AUTH_CHANGE_EVENT, syncAuthState);

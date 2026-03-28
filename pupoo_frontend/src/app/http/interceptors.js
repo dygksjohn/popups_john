@@ -5,7 +5,6 @@ import {
   getConfiguredBaseUrl,
 } from "../../shared/config/requestUrl";
 
-const ADMIN_TOKEN_KEY = "pupoo_admin_token";
 const REFRESH_PATH = "/api/auth/refresh";
 const apiBaseUrl = getConfiguredBaseUrl(import.meta.env.VITE_API_BASE_URL);
 
@@ -43,31 +42,18 @@ function isAdminRequestPath(path) {
   return path === "/api/admin" || path.startsWith("/api/admin/");
 }
 
-function getAdminAccessToken() {
-  try {
-    return localStorage.getItem(ADMIN_TOKEN_KEY);
-  } catch {
-    return null;
-  }
+function hasRefreshableSession(path) {
+  return isAdminRequestPath(path)
+    ? tokenStore.hasAdminSessionHint()
+    : tokenStore.hasSessionHint();
 }
 
-function setAdminAccessToken(accessToken) {
-  try {
-    if (accessToken) {
-      localStorage.setItem(ADMIN_TOKEN_KEY, accessToken);
-    }
-  } catch {
-    // ignore storage failures
+function clearSession(path) {
+  if (isAdminRequestPath(path)) {
+    tokenStore.clearAdmin();
+    return;
   }
-}
-
-function clearAllTokens() {
-  tokenStore.clear();
-  try {
-    localStorage.removeItem(ADMIN_TOKEN_KEY);
-  } catch {
-    // ignore storage failures
-  }
+  tokenStore.clearUser();
 }
 
 function extractAccessToken(payload) {
@@ -120,8 +106,8 @@ export function attachInterceptors(instance, options = {}) {
 
     const path = normalizeUrlPath(config?.url);
     const access = isAdminRequestPath(path)
-      ? (getAdminAccessToken() || tokenStore.getAccess())
-      : tokenStore.getAccess();
+      ? tokenStore.getAdminAccessToken()
+      : tokenStore.getAccessToken();
 
     if (access) {
       config.headers = config.headers || {};
@@ -136,18 +122,20 @@ export function attachInterceptors(instance, options = {}) {
       const status = err?.response?.status;
       const original = err?.config;
       if (!original) return Promise.reject(err);
-
-      if (!hasAuthHeader(original)) {
-        return Promise.reject(err);
-      }
-
+      const path = normalizeUrlPath(original?.url);
       const isPublicAuthRequest = shouldSkipAutoAuth(original, options);
+      const canRefreshSession = hasRefreshableSession(path);
+
       if (status !== 401 || isPublicAuthRequest) {
         return Promise.reject(err);
       }
 
+      if (!hasAuthHeader(original) && !canRefreshSession) {
+        return Promise.reject(err);
+      }
+
       if (original._retry) {
-        clearAllTokens();
+        clearSession(path);
         return Promise.reject(err);
       }
 
@@ -158,10 +146,9 @@ export function attachInterceptors(instance, options = {}) {
 
       try {
         const accessToken = await refreshAccessToken();
-        const path = normalizeUrlPath(original?.url);
 
         if (isAdminRequestPath(path)) {
-          setAdminAccessToken(accessToken);
+          tokenStore.setAdminAccess(accessToken);
         } else {
           tokenStore.setAccess(accessToken);
         }
@@ -171,7 +158,7 @@ export function attachInterceptors(instance, options = {}) {
 
         return instance(original);
       } catch (refreshErr) {
-        clearAllTokens();
+        clearSession(path);
         return Promise.reject(refreshErr);
       }
     },

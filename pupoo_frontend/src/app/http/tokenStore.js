@@ -1,56 +1,168 @@
 const ACCESS_KEY = "pupoo_access_token";
 const REFRESH_KEY = "pupoo_refresh_token";
 const SESSION_HINT_KEY = "pupoo_session_hint";
+const ADMIN_ACCESS_KEY = "pupoo_admin_token";
+const ADMIN_SESSION_HINT_KEY = "pupoo_admin_session_hint";
+const SESSION_PLACEHOLDER = "__PUPPOO_SESSION__";
+
 export const AUTH_CHANGE_EVENT = "pupoo-auth-changed";
+
+let accessToken = null;
+let adminAccessToken = null;
+
+function canUseStorage() {
+  return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+}
+
+function readStorage(key) {
+  if (!canUseStorage()) return null;
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeStorage(key, value) {
+  if (!canUseStorage()) return;
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // ignore storage failures
+  }
+}
+
+function removeStorage(key) {
+  if (!canUseStorage()) return;
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // ignore storage failures
+  }
+}
 
 function emitAuthChange() {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent(AUTH_CHANGE_EVENT));
 }
 
+function hasHint(key) {
+  return readStorage(key) === "1";
+}
+
+function setHint(key) {
+  writeStorage(key, "1");
+}
+
+function clearHint(key) {
+  removeStorage(key);
+}
+
+function getDisplayToken(token, hasSession) {
+  if (token) return token;
+  return hasSession ? SESSION_PLACEHOLDER : null;
+}
+
+function hydrateFromLegacyStorage() {
+  const legacyAccess = readStorage(ACCESS_KEY);
+  const legacyRefresh = readStorage(REFRESH_KEY);
+  const legacyAdminAccess = readStorage(ADMIN_ACCESS_KEY);
+
+  if (legacyAccess) {
+    accessToken = legacyAccess;
+    setHint(SESSION_HINT_KEY);
+  } else if (legacyRefresh || hasHint(SESSION_HINT_KEY)) {
+    setHint(SESSION_HINT_KEY);
+  }
+
+  if (legacyAdminAccess) {
+    adminAccessToken = legacyAdminAccess;
+    setHint(ADMIN_SESSION_HINT_KEY);
+  }
+
+  removeStorage(ACCESS_KEY);
+  removeStorage(REFRESH_KEY);
+  removeStorage(ADMIN_ACCESS_KEY);
+}
+
+hydrateFromLegacyStorage();
+
 export const tokenStore = {
-  // 기능: 메모리 대신 localStorage에 저장된 access token을 공통 조회한다.
   getAccess() {
-    return localStorage.getItem(ACCESS_KEY);
+    return getDisplayToken(accessToken, this.hasSessionHint());
+  },
+  getAccessToken() {
+    return accessToken;
   },
   getRefresh() {
-    return localStorage.getItem(REFRESH_KEY);
+    return null;
+  },
+  getAdminAccess() {
+    return getDisplayToken(adminAccessToken, this.hasAdminSessionHint());
+  },
+  getAdminAccessToken() {
+    return adminAccessToken;
   },
   hasSessionHint() {
-    return localStorage.getItem(SESSION_HINT_KEY) === "1";
+    return hasHint(SESSION_HINT_KEY);
   },
-
-  // 기능: access token 저장과 동시에 세션 존재 힌트를 남긴다.
-  // 설명: 실제 refresh token은 쿠키에 있어도 프론트는 session hint로 복구 시도 여부를 판단한다.
-  setAccess(accessToken) {
-    if (accessToken) {
-      localStorage.setItem(ACCESS_KEY, accessToken);
-      localStorage.setItem(SESSION_HINT_KEY, "1");
-      emitAuthChange();
+  hasAdminSessionHint() {
+    return hasHint(ADMIN_SESSION_HINT_KEY);
+  },
+  setAccess(nextAccessToken) {
+    accessToken = nextAccessToken || null;
+    if (nextAccessToken) {
+      setHint(SESSION_HINT_KEY);
     }
+    emitAuthChange();
   },
   setRefresh(refreshToken) {
     if (refreshToken) {
-      localStorage.setItem(REFRESH_KEY, refreshToken);
-      localStorage.setItem(SESSION_HINT_KEY, "1");
+      setHint(SESSION_HINT_KEY);
       emitAuthChange();
     }
   },
-
-  setTokens({ accessToken, refreshToken }) {
-    if (accessToken) localStorage.setItem(ACCESS_KEY, accessToken);
-    if (refreshToken) localStorage.setItem(REFRESH_KEY, refreshToken);
-    if (accessToken || refreshToken) {
-      localStorage.setItem(SESSION_HINT_KEY, "1");
+  setAdminAccess(nextAccessToken) {
+    adminAccessToken = nextAccessToken || null;
+    if (nextAccessToken) {
+      setHint(ADMIN_SESSION_HINT_KEY);
     }
     emitAuthChange();
   },
-
-  // 기능: 로그아웃이나 refresh 실패 시 브라우저 쪽 인증 흔적을 모두 제거한다.
-  clear() {
-    localStorage.removeItem(ACCESS_KEY);
-    localStorage.removeItem(REFRESH_KEY);
-    localStorage.removeItem(SESSION_HINT_KEY);
+  setTokens({ accessToken: nextAccessToken, refreshToken } = {}) {
+    if (nextAccessToken) {
+      accessToken = nextAccessToken;
+      setHint(SESSION_HINT_KEY);
+    }
+    if (refreshToken) {
+      setHint(SESSION_HINT_KEY);
+    }
     emitAuthChange();
+  },
+  clearUser() {
+    accessToken = null;
+    clearHint(SESSION_HINT_KEY);
+    removeStorage(ACCESS_KEY);
+    removeStorage(REFRESH_KEY);
+    emitAuthChange();
+  },
+  clearAdmin() {
+    adminAccessToken = null;
+    clearHint(ADMIN_SESSION_HINT_KEY);
+    removeStorage(ADMIN_ACCESS_KEY);
+    emitAuthChange();
+  },
+  clearAll() {
+    accessToken = null;
+    adminAccessToken = null;
+    clearHint(SESSION_HINT_KEY);
+    clearHint(ADMIN_SESSION_HINT_KEY);
+    removeStorage(ACCESS_KEY);
+    removeStorage(REFRESH_KEY);
+    removeStorage(ADMIN_ACCESS_KEY);
+    emitAuthChange();
+  },
+  clear() {
+    this.clearUser();
   },
 };

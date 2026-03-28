@@ -1,9 +1,9 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { buildRequestUrl } from "../../../shared/config/requestUrl";
+import { tokenStore } from "../../../app/http/tokenStore";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
-const TOKEN_KEY = "pupoo_access_token";
 
 const QUICK_ACTIONS = [
   {
@@ -161,7 +161,7 @@ function resolveCurrentPage(pathname) {
 
 async function requestChat({ history, userMessage, context }) {
   const url = buildRequestUrl(API_BASE_URL, "/api/chatbot/chat");
-  const token = localStorage.getItem(TOKEN_KEY);
+  const token = tokenStore.getAccessToken();
 
   const headers = { "Content-Type": "application/json" };
   if (token) headers.Authorization = `Bearer ${token}`;

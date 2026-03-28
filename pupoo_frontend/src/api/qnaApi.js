@@ -1,11 +1,11 @@
 // src/api/qnaApi.js
 import { axiosInstance } from "../app/http/axiosInstance";
+import { tokenStore } from "../app/http/tokenStore";
 
 /* ── 관리자 토큰 관리 (adminQnaApi 전용) ── */
-const ADMIN_TOKEN_KEY = "pupoo_admin_token";
 
 function adminAuthHeaders() {
-  const token = localStorage.getItem(ADMIN_TOKEN_KEY);
+  const token = tokenStore.getAdminAccessToken();
   if (!token) return {};
   const headers = { Authorization: `Bearer ${token}` };
   return headers;

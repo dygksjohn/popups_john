@@ -1,11 +1,11 @@
 // src/app/http/galleryApi.js
 import { axiosInstance } from "./axiosInstance";
+import { tokenStore } from "../app/http/tokenStore";
 
 /* ── 토큰 (noticeApi와 동일 키) ── */
-const TOKEN_KEY = "pupoo_admin_token";
 
 function authHeaders() {
-  const token = localStorage.getItem(TOKEN_KEY);
+  const token = tokenStore.getAdminAccessToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 

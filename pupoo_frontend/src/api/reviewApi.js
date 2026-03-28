@@ -1,11 +1,11 @@
 // src/api/reviewApi.js
 import { axiosInstance } from "../app/http/axiosInstance";
+import { tokenStore } from "../app/http/tokenStore";
 
 /* 관리자 토큰 관리 */
-const ADMIN_TOKEN_KEY = "pupoo_admin_token";
 
 function adminAuthHeaders() {
-  const token = localStorage.getItem(ADMIN_TOKEN_KEY);
+  const token = tokenStore.getAdminAccessToken();
   if (!token) return {};
   return { Authorization: `Bearer ${token}` };
 }
