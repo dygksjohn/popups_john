@@ -608,7 +608,7 @@ const isUnauthorizedError = (error) => {
 
 const getAdminAccessToken = () => {
   try {
-    return localStorage.getItem("pupoo_admin_token");
+    return tokenStore.getAdminAccess();
   } catch {
     return null;
   }
@@ -616,7 +616,7 @@ const getAdminAccessToken = () => {
 
 const getUserAccessToken = () => {
   try {
-    return tokenStore.getAccess();
+    return tokenStore.getAccessToken();
   } catch {
     return null;
   }

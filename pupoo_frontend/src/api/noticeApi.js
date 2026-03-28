@@ -1,23 +1,23 @@
 import { axiosInstance } from "../app/http/axiosInstance";
+import { tokenStore } from "../app/http/tokenStore";
 
 /* 토큰 관리 */
-const TOKEN_KEY = "pupoo_admin_token";
 
 export function getToken() {
-  return localStorage.getItem(TOKEN_KEY);
+  return tokenStore.getAdminAccess();
 }
 
 export function setToken(token) {
-  localStorage.setItem(TOKEN_KEY, token);
+  tokenStore.setAdminAccess(token);
 }
 
 export function clearToken() {
-  localStorage.removeItem(TOKEN_KEY);
+  tokenStore.clearAdmin();
 }
 
 /** Authorization 헤더 생성 */
 function authHeaders() {
-  const token = getToken();
+  const token = tokenStore.getAdminAccessToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 

@@ -25,7 +25,7 @@ export default function PaymentApprove() {
   }, [navigate, returnToApproveUrl]);
 
   const recoverAccessToken = useCallback(async () => {
-    const access = tokenStore.getAccess();
+    const access = tokenStore.getAccessToken();
     if (access) return access;
 
     if (!tokenStore.hasSessionHint()) return null;

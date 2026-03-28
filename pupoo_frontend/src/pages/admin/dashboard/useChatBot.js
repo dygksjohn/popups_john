@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { buildRequestUrl } from "../../../shared/config/requestUrl";
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
-const TOKEN_KEY = "pupoo_admin_token";
+import { axiosInstance } from "../../../app/http/axiosInstance";
+import { tokenStore } from "../../../app/http/tokenStore";
 const NOTICE_DRAFT_KEY = "pupoo_admin_chatbot_notice_draft";
 const NOTIFICATION_DRAFT_KEY = "pupoo_admin_chatbot_notification_draft";
 const NOTICE_SYNC_EVENT = "pupoo-admin-chatbot-sync-notice";
@@ -346,76 +344,66 @@ function normalizeActions(actions) {
 }
 
 async function requestChat({ history, userMessage, context, confirmation }) {
-  const url = buildRequestUrl(API_BASE_URL, "/api/admin/chatbot/chat");
-  const token = localStorage.getItem(TOKEN_KEY);
-  if (!token) {
+  if (!tokenStore.getAdminAccess() && !tokenStore.hasAdminSessionHint()) {
     const error = new Error(
-      "로그인이 필요해요. 관리자 계정으로 다시 로그인해 주세요.",
+      "Login is required. Please sign in again with an admin account.",
     );
     error.messageType = "unauthorized";
     error.status = 401;
     throw error;
   }
 
-  let response;
   try {
-    response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        message: userMessage,
-        history: history.map((message) => ({
-          role: message.role === "bot" ? "assistant" : "user",
-          content: message.text,
-        })),
-        context,
-        confirmation,
-      }),
+    const response = await axiosInstance.post("/api/admin/chatbot/chat", {
+      message: userMessage,
+      history: history.map((message) => ({
+        role: message.role === "bot" ? "assistant" : "user",
+        content: message.text,
+      })),
+      context,
+      confirmation,
     });
-  } catch {
-    throw new Error(
-      "지금은 누리와 연결되지 않았어요. 잠시 후 다시 시도해 주세요.",
-    );
-  }
 
-  const rawText = await response.text();
-  let payload;
-  try {
-    payload = JSON.parse(rawText);
-  } catch {
-    throw new Error(
-      `응답을 읽지 못했어요. 잠시 후 다시 시도해 주세요. (${rawText.slice(0, 120)})`,
-    );
-  }
-
-  if (!response.ok || payload?.success === false) {
-    const error = new Error(resolveErrorMessage(payload));
-    error.messageType = payload?.data?.messageType || "error";
-    error.status = response.status;
-    if (response.status === 401) {
-      error.message =
-        "로그인이 필요해요. 관리자 계정으로 다시 로그인해 주세요.";
-      error.messageType = "unauthorized";
-    } else if (response.status === 403) {
-      error.message = "관리자 권한이 필요해요. 권한을 다시 확인해 주세요.";
-      error.messageType = "forbidden";
-    } else if (response.status === 404) {
-      error.message = "대상을 찾지 못했어요. 목록에서 다시 확인해 주세요.";
-      error.messageType = "not_found";
+    const payload = response?.data ?? {};
+    if (payload?.success === false) {
+      const error = new Error(resolveErrorMessage(payload));
+      error.messageType = payload?.data?.messageType || "error";
+      error.status = response?.status;
+      throw error;
     }
-    throw error;
-  }
 
-  return (
-    payload?.data || {
-      message: "응답을 받지 못했어요.",
-      messageType: "default",
-      actions: [],
+    return (
+      payload?.data || {
+        message: "No response was returned.",
+        messageType: "default",
+        actions: [],
+      }
+    );
+  } catch (error) {
+    const status = Number(error?.response?.status || error?.status);
+    if (!status) {
+      throw new Error(
+        "Nuri is temporarily unavailable. Please try again in a moment.",
+      );
     }
-  );
+
+    const payload = error?.response?.data ?? {};
+    const resolvedError = new Error(resolveErrorMessage(payload));
+    resolvedError.messageType = payload?.data?.messageType || "error";
+    resolvedError.status = status;
+    if (status === 401) {
+      resolvedError.message =
+        "Login is required. Please sign in again with an admin account.";
+      resolvedError.messageType = "unauthorized";
+    } else if (status === 403) {
+      resolvedError.message = "Admin permission is required for this action.";
+      resolvedError.messageType = "forbidden";
+    } else if (status === 404) {
+      resolvedError.message = "The requested target could not be found.";
+      resolvedError.messageType = "not_found";
+    }
+    throw resolvedError;
+  }
 }
 
 function enrichBotMessage(baseMessage, response) {

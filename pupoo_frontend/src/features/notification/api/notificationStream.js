@@ -48,7 +48,7 @@ export function connectNotificationStream({
 }
 
 function buildNotificationStreamUrl() {
-  const accessToken = tokenStore.getAccess();
+  const accessToken = tokenStore.getAccessToken();
   if (!accessToken) {
     return NOTIFICATION_STREAM_PATH;
   }
