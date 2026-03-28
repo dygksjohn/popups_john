@@ -231,9 +231,7 @@ const PromoCard = ({ promo }) => {
   );
 };
 
-/* ?????????????????????????????????????????????
-   DROPDOWN CARD (compact, fixed below header)
-????????????????????????????????????????????? */
+/* 헤더 아래에 고정으로 펼쳐지는 메가 메뉴 카드다. */
 const DropdownCard = ({ menuData, onNavigate, topOffset = 92 }) => {
   if (!menuData) return null;
   const { columns, promo } = menuData;
@@ -254,7 +252,7 @@ const DropdownCard = ({ menuData, onNavigate, topOffset = 92 }) => {
         animation: "megaSlideDown 0.18s ease",
       }}
     >
-      {/* Columns */}
+      {/* 메뉴 컬럼 목록 */}
       <div style={{ display: "flex", gap: 48 }}>
         {columns.map((col, i) => (
           <div key={i} style={{ minWidth: 130 }}>
@@ -283,9 +281,7 @@ const DropdownCard = ({ menuData, onNavigate, topOffset = 92 }) => {
   );
 };
 
-/* ?????????????????????????????????????????????
-   SEARCH PANEL (dropdown style, below header)
-????????????????????????????????????????????? */
+/* 헤더 아래에서 열리는 검색 패널이다. */
 const POPULAR_TAGS = [
   { label: "#행사안내", to: "/event/current" },
   { label: "#참가신청", to: "/registration/apply" },
@@ -322,7 +318,7 @@ const SearchPanel = ({
     return () => window.removeEventListener("keydown", handleKey);
   }, [onClose]);
 
-  /* search debounce */
+  /* 입력이 멈춘 뒤에만 검색 요청을 보내도록 디바운스를 건다. */
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const trimmed = query.trim();
@@ -429,7 +425,7 @@ const SearchPanel = ({
         </div>
       </form>
 
-      {/* search results or popular tags */}
+      {/* 검색 결과가 있으면 결과를, 없으면 인기 태그를 보여준다. */}
       {searched && query.trim() ? (
         <div style={{ width: "100%", maxWidth: resultMaxWidth }}>
           {loading ? (
@@ -455,7 +451,7 @@ const SearchPanel = ({
                   onMouseEnter={(e) => (e.currentTarget.style.background = "#f7f8fa")}
                   onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
                 >
-                  {/* thumbnail */}
+                  {/* 썸네일 */}
                   <div style={{
                     width: compact ? 48 : 56, height: compact ? 48 : 56, borderRadius: 12, flexShrink: 0, overflow: "hidden",
                     background: "#f0f0f0",
@@ -475,7 +471,7 @@ const SearchPanel = ({
                       </div>
                     )}
                   </div>
-                  {/* info */}
+                  {/* 행사 정보 */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{
                       fontSize: mobile ? 14 : 15, fontWeight: 700, color: "#222",
@@ -500,7 +496,7 @@ const SearchPanel = ({
                       )}
                     </div>
                   </div>
-                  {/* status */}
+                  {/* 상태 배지 */}
                   {evt.status && (
                     <div style={{
                       fontSize: 12, fontWeight: 700, color: statusColor(evt.status),
@@ -514,7 +510,7 @@ const SearchPanel = ({
               ))}
             </div>
           ) : (
-            /* empty results */
+            /* 검색 결과가 없을 때의 빈 상태 화면 */
             <div style={{
               textAlign: "center", padding: "32px 0",
               display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
@@ -554,7 +550,7 @@ const SearchPanel = ({
           )}
         </div>
       ) : (
-        /* default popular tags */
+        /* 기본 인기 태그 영역 */
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
           {POPULAR_TAGS.map((tag) => (
             <button
@@ -581,9 +577,7 @@ const SearchPanel = ({
   );
 };
 
-/* ?????????????????????????????????????????????
-   MAIN HEADER
-????????????????????????????????????????????? */
+/* 사이트 공통 상단 헤더 본체다. */
 function fmtDate(str) {
   if (!str) return "";
   const d = new Date(str), now = new Date();
@@ -678,7 +672,7 @@ export default function PupooHeader() {
         resolveNotificationTargetPath(res?.targetType, res?.targetId) || targetPath;
       if (nextTargetPath) navigate(nextTargetPath);
     } catch {
-      // ignore click errors in header panel
+      // 헤더 알림 패널 안에서는 이동 실패를 조용히 무시한다.
     } finally {
       setNotifOpen(false);
     }
@@ -698,7 +692,7 @@ export default function PupooHeader() {
         return next;
       });
     } catch {
-      // ignore delete errors in header panel
+      // 헤더 알림 패널 안에서는 삭제 실패를 조용히 무시한다.
     } finally {
       setDeletingInboxIds((prev) => prev.filter((id) => id !== inboxId));
     }
@@ -935,7 +929,7 @@ export default function PupooHeader() {
         .kakao-icon-btn.light:hover {
           background-color: rgba(255,255,255,0.15);
         }
-        /* ?? custom tooltip ?? */
+        /* 아이콘 버튼 아래에 뜨는 커스텀 툴팁 */
         .kakao-icon-btn .ktt {
           position: absolute;
           bottom: -36px;
@@ -977,7 +971,7 @@ export default function PupooHeader() {
           opacity: 1;
           transform: translateX(-50%) translateY(0);
         }
-        /* ?? CTA Button ?? */
+        /* 카카오 상담 유도 버튼 */
         .kakao-cta {
           display: inline-flex;
           align-items: center;
@@ -1197,7 +1191,7 @@ export default function PupooHeader() {
       `}</style>
 
       <div ref={headerRef} style={{ position: "relative", zIndex: 3000 }}>
-        {/* ?? HEADER BAR ?? */}
+        {/* 헤더 바 */}
         <header
           style={{
             position: "fixed",
@@ -1225,7 +1219,7 @@ export default function PupooHeader() {
               height: "100%",
             }}
           >
-            {/* ?? LEFT: Logo ?? */}
+            {/* 왼쪽 로고 영역 */}
             <Link
               to="/"
               style={{
@@ -1247,7 +1241,7 @@ export default function PupooHeader() {
               />
             </Link>
 
-            {/* ?? CENTER: Nav (Kakao-style pill buttons) ?? */}
+            {/* 중앙 네비게이션 버튼 */}
             <nav
               className="pupoo-desktop-only"
               style={{
@@ -1271,7 +1265,7 @@ export default function PupooHeader() {
               ))}
             </nav>
 
-            {/* ?? RIGHT: Icons ?? */}
+            {/* 오른쪽 아이콘 묶음 */}
             <div
               className="pupoo-desktop-only"
               style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}
@@ -1385,7 +1379,7 @@ export default function PupooHeader() {
                 flexShrink: 0,
               }}
             >
-              {/* Bell - mobile (첫 번째) */}
+              {/* 모바일 알림 버튼 */}
               {isAuthed && (
                 <button
                   type="button"
@@ -1446,7 +1440,7 @@ export default function PupooHeader() {
           </div>
         </header>
 
-        {/* mobile notif panel */}
+        {/* 모바일 알림 패널 */}
         {notifOpen && isMobile && (
           <div style={{ position: "fixed", inset: 0, zIndex: 9997 }} onClick={() => setNotifOpen(false)} />
         )}
@@ -1494,7 +1488,7 @@ export default function PupooHeader() {
           </div>
         )}
 
-        {/* ?? DROPDOWN CARD ?? */}
+        {/* 메가 메뉴 드롭다운 카드 */}
 
         {!isCompact && activeMenu && megaMenuData[activeMenu] && (
           <DropdownCard
@@ -1703,7 +1697,7 @@ export default function PupooHeader() {
           />
         )}
 
-        {/* ?? BACKDROP (dark overlay below header, click to close) ?? */}
+        {/* 헤더 패널이 열렸을 때 아래를 덮는 배경막 */}
         {(activeMenu || searchOpen || mobileMenuOpen) && (
           <div
             onClick={() => {

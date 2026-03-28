@@ -7,7 +7,7 @@ import { NaverBrandMark } from "../../../shared/ui/NaverBrandMark";
 import { clearAllSocialJoinState } from "./socialJoinStorage";
 import { resolveGoogleRedirectUri } from "./googleRedirectUri";
 
-// ?? Social button (reusable) ??????????????????????????????????????????????????
+// 소셜 로그인 버튼에서 공통으로 쓰는 스타일 컴포넌트다.
 const SocialButton = ({ onClick, style, children, compact = false }) => {
   const [hovered, setHovered] = useState(false);
   return (
@@ -39,7 +39,7 @@ const SocialButton = ({ onClick, style, children, compact = false }) => {
   );
 };
 
-// ?? SVG icons ?????????????????????????????????????????????????????????????????
+// 소셜 로그인 아이콘을 인라인 SVG로 정의한다.
 const KakaoIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24">
     <path
@@ -85,7 +85,7 @@ const clearPendingSocialJoin = () => {
   ].forEach((key) => sessionStorage.removeItem(key));
 };
 
-// ?? Animated geometric shapes for the left panel ?????????????????????????????
+// 데스크톱 좌측 패널에 배치하는 장식 도형이다.
 const FloatingShape = ({ style }) => (
   <div
     style={{
@@ -98,7 +98,7 @@ const FloatingShape = ({ style }) => (
   />
 );
 
-// ?? Main LoginPage component ??????????????????????????????????????????????????
+// 로그인 화면 전체를 렌더링한다.
 const LoginPage = ({ leftBgImage = null }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -129,10 +129,7 @@ const LoginPage = ({ leftBgImage = null }) => {
     sessionStorage.removeItem("kakao_email");
     sessionStorage.removeItem("kakao_nickname");
 
-    // Redirect priority after login success
-    // 1. from passed by ProtectedRoute
-    // 2. previous visited route
-    // 3. default home
+    // 로그인 성공 후에는 보호 라우트 진입 경로, 직전 경로, 홈 순서로 돌아간다.
     const redirectTo = resolvePostLoginRedirect();
     sessionStorage.setItem("post_login_redirect", redirectTo);
 
@@ -303,9 +300,8 @@ const LoginPage = ({ leftBgImage = null }) => {
 
   return (
     <>
-      {/* Google Fonts */}
+      {/* 로그인 페이지 래퍼 */}
 
-      {/* ?? Page wrapper ?? */}
       <div
         style={{
           minHeight: "100vh",
@@ -322,7 +318,7 @@ const LoginPage = ({ leftBgImage = null }) => {
         }}
       >
         <div style={{ width: "100%", maxWidth: isTablet ? 760 : 860 }}>
-          {/* ?? Card ?? */}
+          {/* 로그인 카드 본문 */}
           <div
             className="login-card card-enter"
             style={{
@@ -337,7 +333,7 @@ const LoginPage = ({ leftBgImage = null }) => {
               marginTop: isMobile ? 0 : isTablet ? 60 : 100,
             }}
           >
-            {/* Left panel — desktop/tablet only */}
+            {/* 왼쪽 소개 패널은 태블릿 이상에서만 노출한다. */}
             {!isMobile && (
             <div
               className="left-panel"
@@ -399,7 +395,7 @@ const LoginPage = ({ leftBgImage = null }) => {
             </div>
             )}
 
-            {/* Right panel */}
+            {/* 오른쪽 로그인 폼 영역 */}
             <div
               className="right-panel"
               style={{
@@ -420,14 +416,14 @@ const LoginPage = ({ leftBgImage = null }) => {
                   <div style={{ fontSize: 13, color: "#9ca3af", fontWeight: 400 }}>행사 신청부터 참여 기록까지 한번에</div>
                 </div>
               )}
-              {/* Title — desktop/tablet only */}
+              {/* 제목은 태블릿 이상에서만 노출한다. */}
               {!isMobile && (
               <div style={{ marginBottom: 32 }}>
                 <span style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.03em", color: "#1a1a1a" }}>로그인</span>
               </div>
               )}
 
-              {/* ??? ID input ??? */}
+              {/* 이메일 입력 */}
               <div style={{ marginBottom: 12 }}>
                 <input
                   type="text"
@@ -441,7 +437,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                 />
               </div>
 
-              {/* ??? Password input ??? */}
+              {/* 비밀번호 입력 */}
               <div style={{ marginBottom: isMobile ? 14 : 16 }}>
                 <input
                   type="password"
@@ -455,7 +451,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                 />
               </div>
 
-              {/* ??? Remember me ??? */}
+              {/* 아이디 저장 옵션 */}
               <label
                 style={{
                   display: "flex",
@@ -482,7 +478,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                 아이디 저장
               </label>
 
-              {/* ??? Login button ??? */}
+              {/* 로그인 버튼 */}
               <button
                 className="login-btn"
                 onClick={handleLogin}
@@ -507,7 +503,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                 로그인
               </button>
 
-              {/* ??? Sign-up / Find password links ??? */}
+              {/* 회원가입과 비밀번호 찾기 링크 */}
               <div
                 style={{
                   display: "flex",
@@ -550,7 +546,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                 </a>
               </div>
 
-              {/* ??? Divider ??? */}
+              {/* 소셜 로그인 구분선 */}
               <div
                 style={{
                   display: "flex",
@@ -572,7 +568,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                 <div style={{ flex: 1, height: 1, background: "#E8EDF5" }} />
               </div>
 
-              {/* Social buttons */}
+              {/* 소셜 로그인 버튼 묶음 */}
               <div
                 style={{ display: "flex", flexDirection: "column", gap: 10 }}
               >
@@ -585,7 +581,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                   <span>카카오로 로그인</span>
                 </SocialButton>
 
-                {/* Google */}
+                {/* 구글 로그인 */}
                 <SocialButton
                   onClick={handleGoogleLogin}
                   compact={isMobile}
@@ -601,7 +597,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                   <span>Google로 로그인</span>
                 </SocialButton>
 
-                {/* Naver */}
+                {/* 네이버 로그인 */}
                 <SocialButton
                   onClick={handleNaverLogin}
                   compact={isMobile}
@@ -623,7 +619,7 @@ const LoginPage = ({ leftBgImage = null }) => {
             </div>
           </div>
 
-          {/* ?? Footer ?? */}
+          {/* 하단 안내 문구 */}
           <div
             style={{
               textAlign: "center",

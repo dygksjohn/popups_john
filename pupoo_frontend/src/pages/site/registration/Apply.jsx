@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Search, TicketCheck, ArrowRight, ClipboardList } from "lucide-react";
+import { Search, TicketCheck, ArrowRight, ClipboardList, X } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import PageLoading from "../components/PageLoading";
 import { eventApi } from "../../../app/http/eventApi";
@@ -207,13 +207,23 @@ const styles = `
     align-items: center;
     justify-content: space-between;
     margin-top: auto;
+    gap: 12px;
   }
   .reg-card-price {
     font-size: 13px;
     font-weight: 600;
     color: #999;
+    flex: 1;
+    min-width: 0;
   }
   .reg-card-price.free { color: #059669; }
+  .reg-card-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
   .reg-card-apply {
     padding: 8px 18px;
     border: none;
@@ -237,6 +247,11 @@ const styles = `
     color: #666;
   }
   .reg-card-apply.secondary:hover { background: #e5e7eb; }
+  .reg-card-apply.danger {
+    background: #fff1f2;
+    color: #e11d48;
+  }
+  .reg-card-apply.danger:hover { background: #ffe4e6; }
 
   .reg-msg {
     text-align: center;
@@ -272,6 +287,9 @@ const styles = `
     .reg-filter button { flex: 1; justify-content: center; font-size: 13px; padding: 0 14px; height: 40px; }
     .reg-card-body { padding: 16px 16px 14px; }
     .reg-card-art { height: 180px; }
+    .reg-card-bottom { flex-direction: column; align-items: stretch; }
+    .reg-card-actions { width: 100%; justify-content: stretch; }
+    .reg-card-actions .reg-card-apply { flex: 1; justify-content: center; }
   }
 `;
 
@@ -302,9 +320,10 @@ export default function Apply() {
   const [statusFilter, setStatusFilter] = useState("ONGOING");
   const [searchKeyword, setSearchKeyword] = useState("");
   const [selectedEventId, setSelectedEventId] = useState(null);
-  const [registrationStatusByEvent, setRegistrationStatusByEvent] = useState({});
+  const [registrationByEvent, setRegistrationByEvent] = useState({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [cancellingApplyId, setCancellingApplyId] = useState(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -340,9 +359,12 @@ export default function Apply() {
           const map = {};
           for (const row of regRows) {
             if (!row?.eventId || map[row.eventId]) continue;
-            map[row.eventId] = row.status;
+            map[row.eventId] = {
+              applyId: row.applyId,
+              status: row.status,
+            };
           }
-          if (mounted) setRegistrationStatusByEvent(map);
+          if (mounted) setRegistrationByEvent(map);
         }
       } catch (e) {
         if (!mounted) return;
@@ -388,6 +410,18 @@ export default function Apply() {
     }
   }, [filteredEvents, selectedEventId]);
 
+  const navigateToCheckout = (targetEventId) => {
+    const targetEvent = events.find((e) => Number(e.eventId) === Number(targetEventId)) || null;
+    const amount = Number(targetEvent?.baseFee ?? 0);
+    const params = new URLSearchParams({
+      eventId: String(targetEventId),
+      amount: String(Number.isFinite(amount) ? amount : 0),
+      title: targetEvent?.eventName || "",
+      returnUrl: location?.pathname || "/",
+    });
+    navigate(`/payment/checkout?${params.toString()}`);
+  };
+
   const handleApply = async (targetEventId = selectedEventId) => {
     if (!targetEventId || submitting) return;
 
@@ -402,23 +436,22 @@ export default function Apply() {
     setError("");
     setSuccess("");
 
-    const targetEvent = events.find((e) => Number(e.eventId) === Number(targetEventId)) || null;
-    const amount = Number(targetEvent?.baseFee ?? 0);
-    const params = new URLSearchParams({
-      eventId: String(targetEventId),
-      amount: String(Number.isFinite(amount) ? amount : 0),
-      title: targetEvent?.eventName || "",
-      returnUrl: location?.pathname || "/",
-    });
-
     try {
-      await axiosInstance.post("/api/event-registrations", {
+      const applyRes = await axiosInstance.post("/api/event-registrations", {
         eventId: Number(targetEventId),
       });
-      navigate(`/payment/checkout?${params.toString()}`);
+      const appliedRow = applyRes?.data?.data ?? applyRes?.data ?? null;
+      setRegistrationByEvent((prev) => ({
+        ...prev,
+        [targetEventId]: {
+          applyId: appliedRow?.applyId ?? prev[targetEventId]?.applyId ?? null,
+          status: "APPLIED",
+        },
+      }));
+      navigateToCheckout(targetEventId);
     } catch (e) {
       if (e?.response?.status === 409) {
-        navigate(`/payment/checkout?${params.toString()}`);
+        navigateToCheckout(targetEventId);
       } else if (e?.response?.status === 401) {
         navigate("/auth/login", {
           state: { from: `${location.pathname}${location.search}` },
@@ -432,6 +465,32 @@ export default function Apply() {
       }
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleCancelRegistration = async (targetEventId) => {
+    const registration = registrationByEvent[targetEventId];
+    if (!registration?.applyId || cancellingApplyId) return;
+
+    setCancellingApplyId(registration.applyId);
+    setError("");
+    setSuccess("");
+    try {
+      await axiosInstance.delete(`/api/event-registrations/${registration.applyId}`);
+      setRegistrationByEvent((prev) => {
+        const next = { ...prev };
+        delete next[targetEventId];
+        return next;
+      });
+      setSuccess("참가 신청을 취소했습니다.");
+    } catch (e) {
+      const message =
+        e?.response?.data?.error?.message ||
+        e?.response?.data?.message ||
+        "참가 신청 취소에 실패했습니다.";
+      setError(message);
+    } finally {
+      setCancellingApplyId(null);
     }
   };
 
@@ -479,7 +538,9 @@ export default function Apply() {
           <div className="reg-event-list">
             {filteredEvents.map((ev, idx) => {
               const selected = Number(ev.eventId) === Number(selectedEventId);
-              const registrationStatus = String(registrationStatusByEvent[ev.eventId] || "").toUpperCase();
+              const registration = registrationByEvent[ev.eventId] || null;
+              const registrationStatus = String(registration?.status || "").toUpperCase();
+              const isApplied = registrationStatus === "APPLIED" || registrationStatus === "신청완료";
               const isApproved = registrationStatus === "APPROVED" || registrationStatus === "승인완료";
               const priceText = formatPrice(ev.baseFee);
               const isFree = priceText === "무료";
@@ -510,6 +571,25 @@ export default function Apply() {
                           onClick={(e) => { e.stopPropagation(); navigate("/registration/applyhistory"); }}
                           type="button"
                         ><ClipboardList size={14} />신청내역</button>
+                      ) : isApplied ? (
+                        <div className="reg-card-actions">
+                          <button
+                            className="reg-card-apply danger"
+                            onClick={(e) => { e.stopPropagation(); handleCancelRegistration(ev.eventId); }}
+                            disabled={cancellingApplyId === registration?.applyId}
+                            type="button"
+                          >
+                            {cancellingApplyId === registration?.applyId ? "취소 중..." : <><X size={14} />신청 취소</>}
+                          </button>
+                          <button
+                            className="reg-card-apply secondary"
+                            onClick={(e) => { e.stopPropagation(); navigateToCheckout(ev.eventId); }}
+                            disabled={submitting}
+                            type="button"
+                          >
+                            <ArrowRight size={14} />결제하기
+                          </button>
+                        </div>
                       ) : (
                         <button
                           className="reg-card-apply"

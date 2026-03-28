@@ -46,7 +46,7 @@ const ReportManage = lazy(() => import("../report/ReportManage"));
 const DASHBOARD_TARGET_KEY = "pupoo_admin_dashboard_target";
 const DASHBOARD_TARGET_EVENT = "pupoo-admin-dashboard-target";
 
-/* global animation CSS */
+/* 공통 애니메이션과 스크롤바 스타일을 정의한다. */
 
 
 const globalStyles = `
@@ -63,7 +63,7 @@ const globalStyles = `
   100% { transform: rotate(0deg); }
 }
 
-/* thin custom scrollbar */
+/* 얇은 커스텀 스크롤바 */
 ::-webkit-scrollbar {
   width: 5px;
   height: 5px;
@@ -82,7 +82,7 @@ const globalStyles = `
   background: transparent;
 }
 
-/* sidebar scrollbar */
+/* 사이드바 전용 스크롤바 */
 aside ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.07);
 }
@@ -90,7 +90,7 @@ aside ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.18);
 }
 
-/* Firefox */
+/* 파이어폭스 스크롤바 */
 * {
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
@@ -100,7 +100,7 @@ aside * {
 }
 `;
 
-/* sidebar and shell layout */
+/* 관리자 셸 레이아웃과 사이드바 메뉴 정의 */
 
 
 const NAV = [
@@ -291,7 +291,7 @@ function PageHome() {
   return <HomeDashboard />;
 }
 
-/* main component */
+/* 관리자 대시보드 메인 컴포넌트 */
 
 
 export default function Dashboard() {
@@ -301,7 +301,7 @@ export default function Dashboard() {
     typeof window === "undefined" ? 1440 : window.innerWidth,
   );
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  // bell animation removed because the logout button occupies the slot
+  // 로그아웃 버튼이 같은 자리를 쓰므로 벨 애니메이션 상태는 제거했다.
   const [pageTabs, setPageTabs] = useState(DEFAULT_PAGE_TABS);
   const [eventMenuBadge, setEventMenuBadge] = useState(0);
 
@@ -331,7 +331,7 @@ export default function Dashboard() {
       try {
         sessionStorage.removeItem(DASHBOARD_TARGET_KEY);
       } catch {
-        // ignore storage failures
+        // 저장소 접근에 실패해도 대시보드는 기본 상태로 계속 동작시킨다.
       }
     };
 
@@ -383,7 +383,7 @@ export default function Dashboard() {
             ? payload
             : [];
 
-      /* date-based status calculation aligned with event manage calcStatus */
+      /* 행사 관리 화면과 같은 기준으로 날짜 기반 상태를 계산한다. */
       const calcSt = (startAt, endAt) => {
         if (!startAt && !endAt) return "pending";
         const norm = (v) => (v ? String(v).replace(/\./g, "-").trim() : v);
@@ -528,7 +528,7 @@ export default function Dashboard() {
     >
       <style>{globalStyles}</style>
 
-      {/* ??? SIDEBAR ??? */}
+      {/* 사이드바 */}
       <aside
         style={{
           width: isHandset ? "min(82vw, 280px)" : isTablet ? 300 : 240,
@@ -551,7 +551,7 @@ export default function Dashboard() {
             : {}),
         }}
       >
-        {/* 濡쒓퀬 */}
+        {/* 로고 */}
         <div
           style={{
             padding: "22px 18px 16px",
@@ -607,7 +607,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* menu groups */}
+        {/* 메뉴 그룹 목록 */}
         <nav style={{ flex: 1, padding: "0 10px", overflow: "auto" }}>
           {NAV.map((group) => (
             <div key={group.section}>
@@ -682,7 +682,7 @@ export default function Dashboard() {
           ))}
         </nav>
 
-        {/* sidebar footer */}
+        {/* 사이드바 하단 관리자 정보 */}
         <div
           style={{
             padding: "12px 14px 16px",
@@ -706,7 +706,7 @@ export default function Dashboard() {
               fontWeight: 800,
             }}
           >
-            源
+            김
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 12.5, fontWeight: 700, color: ds.inkW }}>
@@ -730,7 +730,7 @@ export default function Dashboard() {
         />
       )}
 
-      {/* ??? MAIN ??? */}
+      {/* 메인 영역 */}
       <main
         style={{
           flex: 1,
@@ -740,7 +740,7 @@ export default function Dashboard() {
           minWidth: 0,
         }}
       >
-        {/* ?ㅻ뜑 */}
+        {/* 상단 헤더 */}
         <header
           style={{
             background: ds.card,
@@ -801,10 +801,10 @@ export default function Dashboard() {
               minWidth: 0,
             }}
           >
-            {/* desktop only: today greeting */}
+            {/* 데스크톱에서는 날짜와 인사말을 함께 보여준다. */}
             {!isMobile && <TodayGreeting />}
 
-            {/* logout */}
+            {/* 로그아웃 버튼 */}
             <button
               onClick={() => {
                 clearToken();
@@ -843,7 +843,7 @@ export default function Dashboard() {
           </div>
         </header>
 
-        {/* tabs shown only when there is more than one */}
+        {/* 탭이 두 개 이상일 때만 탭 바를 노출한다. */}
         {tabs.length > 1 && (
           <div
             style={{
@@ -909,7 +909,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* page content */}
+        {/* 현재 선택한 페이지 콘텐츠 */}
         <div
           style={{
             flex: 1,

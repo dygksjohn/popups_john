@@ -12,7 +12,7 @@ import {
   toPublicAssetUrl,
 } from "../../../shared/utils/publicAssetUrl";
 
-/* ?? ?대?吏 ?대갚 ?? */
+/* 행사 카드에 순환 적용할 대체 이미지를 준비한다. */
 const DOG_IMGS = [
   "https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=600&h=800&fit=crop",
   "https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=600&h=800&fit=crop",
@@ -40,7 +40,7 @@ const HOME_HERO_VIDEOS = [
   },
 ];
 
-/* ?? 怨듯넻 ?좎쭨 ?щ㎎ ?? */
+/* 화면 곳곳에서 재사용하는 날짜 표기 함수다. */
 function fmtEventDate(iso) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -96,7 +96,7 @@ function mapApiEvent(raw) {
   };
 }
 
-/* 세션 매핑 */
+/* 프로그램 응답을 화면에서 쓰기 쉬운 세션 형태로 변환한다. */
 function mapSession(raw, eventMap) {
   const id = raw?.programId ?? raw?.id;
   const eventId = raw?.eventId;
@@ -119,7 +119,7 @@ function mapSession(raw, eventMap) {
   };
 }
 
-// ================= ?ㅽ겕濡?reveal ??=================
+// ================= 스크롤 리빌 애니메이션 =================
 function useScrollReveal(options = {}) {
   const { threshold = 0.15, rootMargin = "0px 0px -60px 0px" } = options;
   const ref = useRef(null);
@@ -159,7 +159,7 @@ function RevealSection({ children, className = "", delay = 0 }) {
   );
 }
 
-// ================= EVENT SECTION (DB ?곕룞 ??醫? ?? 怨좎젙) =================
+// ================= 현재 행사 섹션(DB 연동, 좌우 3개씩 고정) =================
 function EventSection() {
   const navigate = useNavigate();
   const [hoveredCard, setHoveredCard] = useState(null);
@@ -182,7 +182,7 @@ function EventSection() {
         .catch(() => setEvents([]));
   }, []);
 
-  // 醫?3媛?/ ??3媛?遺꾨같
+  // 최대 6개 행사를 좌우 3개씩 나눠 배치한다.
   const leftItems = events.slice(0, 3);
   const rightItems = events.length > 3 ? events.slice(3, 6) : events.slice(0, Math.min(3, events.length));
   const sides = [
@@ -254,7 +254,7 @@ function EventCard({ event, isHovered, onHover, onLeave, onClick }) {
   );
 }
 
-// ================= 臾댄븳猷⑦봽 ??=================
+// ================= 무한 루프 캐러셀 훅 =================
 function useInfiniteSlider(itemCount, slideSize) {
   const CLONES = 15;
   const CENTER = itemCount * 7;
@@ -284,7 +284,7 @@ function useInfiniteSlider(itemCount, slideSize) {
   return { index, realIndex, offset, transition, next, prev, goTo, setIndex, setTransition, CLONES };
 }
 
-// ================= SESSION LINEUP (?몄뀡 DB ?곕룞) =================
+// ================= 세션 라인업 섹션(프로그램 DB 연동) =================
 function SessionLineup() {
   const navigate = useNavigate();
   const [sessions, setSessions] = useState([]);
@@ -308,7 +308,7 @@ function SessionLineup() {
           try {
             const list = await programApi.getAllProgramsByEvent({ eventId: ev.eventId ?? ev.id, pageSize: 50 });
             list.forEach((p) => allSessions.push(mapSession(p, eventMap)));
-          } catch { /* skip */ }
+          } catch { /* 개별 행사 프로그램 조회 실패는 건너뛴다. */ }
         }
         const sorted = allSessions.sort((a, b) => {
           const score = (item) => (item.ongoing ? 0 : item.upcoming ? 1 : item.ended ? 3 : 2);
@@ -436,7 +436,7 @@ function SessionLineup() {
   );
 }
 
-// ================= RECOMMEND CAROUSEL (DB ?곕룞) =================
+// ================= 추천 행사 캐러셀(DB 연동) =================
 function RecommendCarousel() {
   const [events, setEvents] = useState([]);
   useEffect(() => {
@@ -524,7 +524,7 @@ function RecommendCarousel() {
   );
 }
 
-// ================= NOTICE SECTION (API ?곕룞) =================
+// ================= 공지사항 섹션(API 연동) =================
 function fmtDate(dt) {
   if (!dt) return "-";
   const d = new Date(dt);
@@ -603,7 +603,7 @@ function NoticeSection() {
   );
 }
 
-// ================= MAIN =================
+// ================= 홈 메인 화면 =================
 export default function Home() {
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [fade, setFade] = useState(true);
@@ -696,4 +696,3 @@ export default function Home() {
       </div>
   );
 }
-
