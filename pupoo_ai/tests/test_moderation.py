@@ -109,7 +109,10 @@ class ModerationAuthTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(context.exception.status_code, 403)
 
     async def test_internal_token_match_passes(self):
-        await verify_internal_token(settings.internal_token)
+        with patch.object(settings, "internal_token", "test-internal-token"), patch.object(
+            settings, "previous_internal_tokens", ""
+        ):
+            await verify_internal_token("test-internal-token")
 
 
 class RagServiceTest(unittest.TestCase):
