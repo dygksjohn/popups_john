@@ -11,11 +11,14 @@ from pupoo_ai.app.features.chatbot.service.chatbot_service import chat
 
 @pytest.mark.asyncio
 async def test_user_route_does_not_fall_into_admin_path():
-    request = ChatRequest(message="행사 안내 도와줘", context=ChatContext(role="admin"))
+    request = ChatRequest(
+        message="\ud589\uc0ac \uc548\ub0b4 \uc54c\ub824\uc918",
+        context=ChatContext(role="admin"),
+    )
 
     async def fake_chat_service(forced_request, authorization=None):
         assert forced_request.context.role == "user"
-        return ChatResponse(message="사용자 안내", actions=[])
+        return ChatResponse(message="\uc0ac\uc6a9\uc790 \uc548\ub0b4", actions=[])
 
     with patch(
         "pupoo_ai.app.api.routers.chatbot.chat_service",
@@ -24,16 +27,19 @@ async def test_user_route_does_not_fall_into_admin_path():
         response = await handle_user_chat(request, authorization=None)
 
     assert response["success"] is True
-    assert response["data"]["message"] == "사용자 안내"
+    assert response["data"]["message"] == "\uc0ac\uc6a9\uc790 \uc548\ub0b4"
 
 
 @pytest.mark.asyncio
 async def test_admin_route_does_not_fall_into_user_path():
-    request = ChatRequest(message="공지 초안 작성 도와줘", context=ChatContext(role="user"))
+    request = ChatRequest(
+        message="\uacf5\uc9c0 \ucd08\uc548 \uc791\uc131 \ub3c4\uc640\uc918",
+        context=ChatContext(role="user"),
+    )
 
     async def fake_chat_service(forced_request, authorization=None):
         assert forced_request.context.role == "admin"
-        return ChatResponse(message="관리자 안내", actions=[])
+        return ChatResponse(message="\uad00\ub9ac\uc790 \uc548\ub0b4", actions=[])
 
     with patch(
         "pupoo_ai.app.api.routers.chatbot.chat_service",
@@ -42,12 +48,12 @@ async def test_admin_route_does_not_fall_into_user_path():
         response = await handle_internal_admin_chat(request, authorization="Bearer token")
 
     assert response["success"] is True
-    assert response["data"]["message"] == "관리자 안내"
+    assert response["data"]["message"] == "\uad00\ub9ac\uc790 \uc548\ub0b4"
 
 
 @pytest.mark.asyncio
 async def test_user_service_uses_user_prompt():
-    request = ChatRequest(message="행사 위치 알려줘")
+    request = ChatRequest(message="\uc548\ub155")
 
     with patch(
         "pupoo_ai.app.features.chatbot.service.chatbot_service.invoke_bedrock",
@@ -55,14 +61,14 @@ async def test_user_service_uses_user_prompt():
     ) as mocked_invoke:
         response = await chat(request)
 
-    assert "무엇을 도와드릴까요?" in response.message
+    assert "\ubb34\uc5c7\uc744 \ub3c4\uc640\ub4dc\ub9b4\uae4c\uc694?" in response.message
     assert mocked_invoke.await_args.kwargs["system_prompt"] == USER_SYSTEM_PROMPT
 
 
 @pytest.mark.asyncio
 async def test_admin_service_uses_admin_prompt():
     request = ChatRequest(
-        message="운영 현황 요약해줘",
+        message="\ubd84\uc704\uae30\ub97c \uc9e7\uac8c \uc124\uba85\ud574\uc918",
         context=ChatContext(role="admin"),
     )
 
@@ -75,5 +81,5 @@ async def test_admin_service_uses_admin_prompt():
     ) as mocked_invoke:
         response = await chat(request)
 
-    assert "무엇을 도와드릴까요?" in response.message
+    assert "\ubb34\uc5c7\uc744 \ub3c4\uc640\ub4dc\ub9b4\uae4c\uc694?" in response.message
     assert mocked_invoke.await_args.kwargs["system_prompt"] == SYSTEM_PROMPT

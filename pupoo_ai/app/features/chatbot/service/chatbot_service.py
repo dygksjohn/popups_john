@@ -1,9 +1,10 @@
-"""챗봇 서비스 오케스트레이션."""
+"""Chatbot service entrypoints."""
 
 from pupoo_ai.app.features.chatbot.dto.request import ChatRequest
 from pupoo_ai.app.features.chatbot.dto.response import ChatResponse
 from pupoo_ai.app.features.chatbot.prompts.system import SYSTEM_PROMPT, USER_SYSTEM_PROMPT
 from pupoo_ai.app.features.chatbot.service.bedrock_client import invoke_bedrock
+from pupoo_ai.app.features.chatbot.service.grounded_answer_service import GroundedAnswerService
 from pupoo_ai.app.features.orchestrator.action_planner import ActionPlanner
 from pupoo_ai.app.features.orchestrator.backend_api_client import BackendApiClient
 from pupoo_ai.app.features.orchestrator.handlers import (
@@ -16,10 +17,22 @@ from pupoo_ai.app.features.orchestrator.handlers import (
 from pupoo_ai.app.features.orchestrator.intent_analyzer import IntentAnalyzer
 
 USER_FALLBACK_MESSAGE = (
-    "무엇을 도와드릴까요? 행사, 로그인, 결제, 환불, 체크인 같은 이용 방법을 안내해 드릴게요."
+    "\ubb34\uc5c7\uc744 \ub3c4\uc640\ub4dc\ub9b4\uae4c\uc694? "
+    "\ud589\uc0ac, \ub85c\uadf8\uc778, \uacb0\uc81c, \ud658\ubd88, \uccb4\ud06c\uc778 \uac19\uc740 "
+    "\uc774\uc6a9 \ubc29\ubc95\uc744 \uc548\ub0b4\ud574\ub4dc\ub9b4\uac8c\uc694."
 )
 ADMIN_FALLBACK_MESSAGE = (
-    "무엇을 도와드릴까요? 운영 요약, 화면 이동, 공지나 알림 초안 준비까지 도와드릴게요."
+    "\ubb34\uc5c7\uc744 \ub3c4\uc640\ub4dc\ub9b4\uae4c\uc694? "
+    "\uc6b4\uc601 \uc694\uc57d, \ud654\uba74 \uc774\ub3d9, \uacf5\uc9c0\uc640 \uc54c\ub9bc \ucd08\uc548 "
+    "\uc900\ube44\uae4c\uc9c0 \ub3c4\uc640\ub4dc\ub9b4\uac8c\uc694."
+)
+AMBIGUOUS_MESSAGE = (
+    "\uc6d0\ud558\uc2dc\ub294 \uc791\uc5c5\uc774 \uc5ec\ub7ec \uac00\uc9c0\ub85c \ud574\uc11d\ub418\uace0 \uc788\uc5b4\uc694. "
+    "\uc5b4\ub5a4 \uc791\uc5c5\uc778\uc9c0 \ud55c \ubc88\ub9cc \ub354 \uad6c\uccb4\uc801\uc73c\ub85c \uc54c\ub824\uc8fc\uc138\uc694."
+)
+LOW_CONFIDENCE_MESSAGE = (
+    "\uc694\uccad\uc744 \uc815\ud655\ud558\uac8c \uc774\ud574\ud558\uc9c0 \ubabb\ud588\uc5b4\uc694. "
+    "\ud544\uc694\ud55c \uc791\uc5c5\uc744 \uc870\uae08 \ub354 \uc790\uc138\ud788 \uc54c\ub824\uc8fc\uc138\uc694."
 )
 
 
@@ -27,8 +40,7 @@ def _is_user_role(request: ChatRequest) -> bool:
     return getattr(request.context, "role", "user") == "user"
 
 
-async def _user_chat(request: ChatRequest) -> ChatResponse:
-    """사용자 챗봇은 일반 안내와 질문 응답만 처리한다."""
+def _build_messages(request: ChatRequest) -> list[dict]:
     history = list(request.history)
     while history and history[0].role == "assistant":
         history.pop(0)
@@ -38,7 +50,15 @@ async def _user_chat(request: ChatRequest) -> ChatResponse:
         for message in history
     ]
     messages.append({"role": "user", "content": [{"text": request.message}]})
-    reply = await invoke_bedrock(messages, system_prompt=USER_SYSTEM_PROMPT)
+    return messages
+
+
+async def _user_chat(request: ChatRequest) -> ChatResponse:
+    grounded_reply = await GroundedAnswerService(BackendApiClient()).answer_user(request.message)
+    if grounded_reply is not None:
+        return ChatResponse(message=grounded_reply, actions=[])
+
+    reply = await invoke_bedrock(_build_messages(request), system_prompt=USER_SYSTEM_PROMPT)
     reply_text = str(reply or "").strip() or USER_FALLBACK_MESSAGE
     return ChatResponse(message=reply_text, actions=[])
 
@@ -49,6 +69,7 @@ async def chat(request: ChatRequest, authorization: str | None = None) -> ChatRe
 
     intent = IntentAnalyzer().analyze(request.message, request.context)
     backend_client = BackendApiClient(authorization)
+    grounded_service = GroundedAnswerService(backend_client)
     execute_handler = ExecuteActionHandler()
 
     if request.confirmation is not None:
@@ -60,13 +81,16 @@ async def chat(request: ChatRequest, authorization: str | None = None) -> ChatRe
     if intent is not None:
         if intent.intent_type == "ambiguous":
             return ChatResponse(
-                message="원하시는 작업이 여러 가지로 해석될 수 있어요. 어떤 작업인지 한 번만 더 구체적으로 알려 주세요.",
+                message=AMBIGUOUS_MESSAGE,
                 messageType="ambiguous",
                 actions=[],
             )
         if intent.intent_type == "low_confidence":
+            grounded_reply = await grounded_service.answer_admin(request.message)
+            if grounded_reply is not None:
+                return ChatResponse(message=grounded_reply, actions=[])
             return ChatResponse(
-                message="요청을 정확히 이해하지 못했습니다. 필요한 작업을 조금 더 자세히 알려 주세요.",
+                message=LOW_CONFIDENCE_MESSAGE,
                 messageType="low_confidence",
                 actions=[],
             )
@@ -83,15 +107,10 @@ async def chat(request: ChatRequest, authorization: str | None = None) -> ChatRe
         if planned_action.intent_type == "execute":
             return execute_handler.prepare(planned_action, request.context)
 
-    history = list(request.history)
-    while history and history[0].role == "assistant":
-        history.pop(0)
+    grounded_reply = await grounded_service.answer_admin(request.message)
+    if grounded_reply is not None:
+        return ChatResponse(message=grounded_reply, actions=[])
 
-    messages = [
-        {"role": message.role, "content": [{"text": message.content}]}
-        for message in history
-    ]
-    messages.append({"role": "user", "content": [{"text": request.message}]})
-    reply = await invoke_bedrock(messages, system_prompt=SYSTEM_PROMPT)
+    reply = await invoke_bedrock(_build_messages(request), system_prompt=SYSTEM_PROMPT)
     reply_text = str(reply or "").strip() or ADMIN_FALLBACK_MESSAGE
     return ChatResponse(message=reply_text, actions=[])

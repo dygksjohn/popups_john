@@ -8,7 +8,7 @@ from pupoo_ai.app.core.config import settings
 
 
 class BackendApiError(Exception):
-    """백엔드 API 호출 실패."""
+    """Backend API request failed."""
 
     def __init__(self, message: str, status_code: int | None = None):
         super().__init__(message)
@@ -16,7 +16,7 @@ class BackendApiError(Exception):
 
 
 class BackendApiClient:
-    """관리자 오케스트레이션용 backend HTTP 클라이언트."""
+    """HTTP client for backend orchestration and grounded chatbot lookups."""
 
     def __init__(self, authorization: str | None = None):
         self._base_url = settings.backend_base_url.rstrip("/")
@@ -27,6 +27,58 @@ class BackendApiClient:
 
     async def get_ai_capabilities(self) -> dict[str, Any]:
         return await self._request("GET", "/api/admin/ai/capabilities")
+
+    async def list_events(
+        self,
+        *,
+        keyword: str | None = None,
+        status: str | None = None,
+        size: int = 20,
+    ) -> list[dict[str, Any]]:
+        response = await self._request(
+            "GET",
+            "/api/events",
+            params={
+                "page": 0,
+                "size": size,
+                "keyword": keyword,
+                "status": status,
+            },
+        )
+        return self._content_items(response)
+
+    async def get_event(self, event_id: int) -> dict[str, Any]:
+        return await self._request("GET", f"/api/events/{event_id}")
+
+    async def list_notices(self, *, keyword: str | None = None, size: int = 10) -> list[dict[str, Any]]:
+        response = await self._request(
+            "GET",
+            "/api/notices",
+            params={
+                "page": 0,
+                "size": size,
+                "keyword": keyword,
+            },
+        )
+        return self._content_items(response)
+
+    async def get_notice(self, notice_id: int) -> dict[str, Any]:
+        return await self._request("GET", f"/api/notices/{notice_id}")
+
+    async def list_faqs(self, *, keyword: str | None = None, size: int = 10) -> list[dict[str, Any]]:
+        response = await self._request(
+            "GET",
+            "/api/faqs",
+            params={
+                "page": 0,
+                "size": size,
+                "keyword": keyword,
+            },
+        )
+        return self._content_items(response)
+
+    async def get_faq(self, post_id: int) -> dict[str, Any]:
+        return await self._request("GET", f"/api/faqs/{post_id}")
 
     async def create_notice(self, payload: dict[str, Any]) -> dict[str, Any]:
         return await self._request("POST", "/api/admin/notices", json=payload)
@@ -61,7 +113,7 @@ class BackendApiClient:
         json: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         if not self._base_url:
-            raise BackendApiError("PUPOO_AI_BACKEND_BASE_URL 설정이 필요합니다.")
+            raise BackendApiError("PUPOO_AI_BACKEND_BASE_URL setting is required.")
 
         headers = {"Content-Type": "application/json"}
         if self._authorization:
@@ -83,7 +135,7 @@ class BackendApiClient:
             body = response.json()
         except ValueError as exc:  # pragma: no cover
             raise BackendApiError(
-                "백엔드 응답을 해석하지 못했습니다.",
+                "Backend response could not be parsed.",
                 status_code=response.status_code,
             ) from exc
 
@@ -94,6 +146,12 @@ class BackendApiClient:
             body.get("error", {}).get("message")
             or body.get("message")
             or body.get("data", {}).get("message")
-            or "백엔드 요청에 실패했습니다."
+            or "Backend request failed."
         )
         raise BackendApiError(str(message), status_code=response.status_code)
+
+    def _content_items(self, response: dict[str, Any]) -> list[dict[str, Any]]:
+        content = response.get("content")
+        if isinstance(content, list):
+            return [item for item in content if isinstance(item, dict)]
+        return []

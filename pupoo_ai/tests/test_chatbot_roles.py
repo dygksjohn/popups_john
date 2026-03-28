@@ -5,10 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-from pupoo_ai.app.api.routers.chatbot import (  # noqa: E402
-    handle_internal_admin_chat,
-    handle_user_chat,
-)
+from pupoo_ai.app.api.routers.chatbot import handle_internal_admin_chat, handle_user_chat  # noqa: E402
 from pupoo_ai.app.features.chatbot.dto.request import ChatContext, ChatRequest  # noqa: E402
 from pupoo_ai.app.features.chatbot.dto.response import ChatResponse  # noqa: E402
 from pupoo_ai.app.features.chatbot.prompts.system import USER_SYSTEM_PROMPT  # noqa: E402
@@ -17,11 +14,14 @@ from pupoo_ai.app.features.chatbot.service.chatbot_service import chat  # noqa: 
 
 class ChatbotRouterRoleTest(unittest.IsolatedAsyncioTestCase):
     async def test_public_user_route_forces_user_role(self):
-        request = ChatRequest(message="행사 안내 도와줘", context=ChatContext(role="admin"))
+        request = ChatRequest(
+            message="\ud589\uc0ac \uc548\ub0b4 \uc54c\ub824\uc918",
+            context=ChatContext(role="admin"),
+        )
 
         async def fake_chat_service(forced_request, authorization=None):
             self.assertEqual(forced_request.context.role, "user")
-            return ChatResponse(message="사용자 안내", actions=[])
+            return ChatResponse(message="\uc0ac\uc6a9\uc790 \uc548\ub0b4", actions=[])
 
         with patch(
             "pupoo_ai.app.api.routers.chatbot.chat_service",
@@ -30,14 +30,17 @@ class ChatbotRouterRoleTest(unittest.IsolatedAsyncioTestCase):
             response = await handle_user_chat(request, authorization=None)
 
         self.assertTrue(response["success"])
-        self.assertEqual(response["data"]["message"], "사용자 안내")
+        self.assertEqual(response["data"]["message"], "\uc0ac\uc6a9\uc790 \uc548\ub0b4")
 
     async def test_internal_admin_route_forces_admin_role(self):
-        request = ChatRequest(message="공지 작성 도와줘", context=ChatContext(role="user"))
+        request = ChatRequest(
+            message="\uacf5\uc9c0 \uc791\uc131 \ub3c4\uc640\uc918",
+            context=ChatContext(role="user"),
+        )
 
         async def fake_chat_service(forced_request, authorization=None):
             self.assertEqual(forced_request.context.role, "admin")
-            return ChatResponse(message="관리자 안내", actions=[])
+            return ChatResponse(message="\uad00\ub9ac\uc790 \uc548\ub0b4", actions=[])
 
         with patch(
             "pupoo_ai.app.api.routers.chatbot.chat_service",
@@ -46,12 +49,12 @@ class ChatbotRouterRoleTest(unittest.IsolatedAsyncioTestCase):
             response = await handle_internal_admin_chat(request, authorization="Bearer token")
 
         self.assertTrue(response["success"])
-        self.assertEqual(response["data"]["message"], "관리자 안내")
+        self.assertEqual(response["data"]["message"], "\uad00\ub9ac\uc790 \uc548\ub0b4")
 
 
 class ChatbotServiceRoleTest(unittest.IsolatedAsyncioTestCase):
     async def test_default_context_uses_user_prompt(self):
-        request = ChatRequest(message="행사 위치 알려줘")
+        request = ChatRequest(message="\uc548\ub155")
 
         with patch(
             "pupoo_ai.app.features.chatbot.service.chatbot_service.invoke_bedrock",
@@ -59,7 +62,7 @@ class ChatbotServiceRoleTest(unittest.IsolatedAsyncioTestCase):
         ) as mocked_invoke:
             response = await chat(request)
 
-        self.assertIn("무엇을 도와드릴까요?", response.message)
+        self.assertIn("\ubb34\uc5c7\uc744 \ub3c4\uc640\ub4dc\ub9b4\uae4c\uc694?", response.message)
         self.assertEqual(
             mocked_invoke.await_args.kwargs["system_prompt"],
             USER_SYSTEM_PROMPT,
