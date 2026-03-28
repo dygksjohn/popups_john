@@ -67,6 +67,7 @@ jobs:
       backend: ${{ steps.filter.outputs.backend }}
       ai: ${{ steps.filter.outputs.ai }}
       workflow_guard: ${{ steps.filter.outputs.workflow_guard }}
+      provider_preflight_assets: ${{ steps.filter.outputs.provider_preflight_assets }}
       force_full_run: ${{ steps.mode.outputs.force_full_run }}
       force_provider_preflight: ${{ steps.mode.outputs.force_provider_preflight }}
       force_provider_issue: ${{ steps.mode.outputs.force_provider_issue }}
@@ -132,6 +133,10 @@ jobs:
               - "scripts/ensure-frontend-csp.sh"
               - "scripts/provider-preflight.mjs"
               - "docs/qa/**"
+            provider_preflight_assets:
+              - ".github/workflows/ci.yml"
+              - "scripts/provider-preflight.mjs"
+              - "docs/qa/**"
 
   workflow-guard:
     runs-on: ubuntu-latest
@@ -163,7 +168,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: changes
-    if: needs.changes.outputs.force_provider_preflight == 'true'
+    if: needs.changes.outputs.force_provider_preflight == 'true' || needs.changes.outputs.provider_preflight_assets == 'true'
     permissions:
       contents: read
       issues: write
