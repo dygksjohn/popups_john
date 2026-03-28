@@ -1358,19 +1358,19 @@ export default function HomeDashboard({ initialEventId = null }) {
                           activeDot={{ r: 3, fill: ds.amber, stroke: ds.amber, strokeWidth: 0 }}
                           connectNulls
                         />
-                        <Line
-                          type="monotoneX"
-                          dataKey="lstm"
-                          name="LSTM"
-                          stroke={ds.amber}
-                          strokeWidth={2}
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeDasharray="4 4"
-                          dot={false}
-                          activeDot={false}
-                          connectNulls
-                        />
+                          <Line
+                            type="monotoneX"
+                            dataKey="lstm"
+                            name="LSTM"
+                            stroke={ds.violet}
+                            strokeWidth={2.4}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeDasharray="6 4"
+                            dot={false}
+                            activeDot={{ r: 3, fill: ds.violet, stroke: ds.violet, strokeWidth: 0 }}
+                            connectNulls
+                          />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
@@ -1439,13 +1439,13 @@ export default function HomeDashboard({ initialEventId = null }) {
                         type="monotoneX"
                         dataKey="lstm"
                         name="LSTM"
-                        stroke={ds.amber}
-                        strokeWidth={2}
+                        stroke={ds.violet}
+                        strokeWidth={2.4}
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        strokeDasharray="4 4"
+                        strokeDasharray="6 4"
                         dot={false}
-                        activeDot={false}
+                        activeDot={{ r: 3, fill: ds.violet, stroke: ds.violet, strokeWidth: 0 }}
                         connectNulls
                       />
                     ) : null}
