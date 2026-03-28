@@ -5,6 +5,7 @@ import { tokenStore } from "../../../app/http/tokenStore";
 import { useAuth } from "./AuthProvider";
 import { NaverBrandMark } from "../../../shared/ui/NaverBrandMark";
 import { clearAllSocialJoinState } from "./socialJoinStorage";
+import { resolveGoogleRedirectUri } from "./googleRedirectUri";
 
 // ?? Social button (reusable) ??????????????????????????????????????????????????
 const SocialButton = ({ onClick, style, children, compact = false }) => {
@@ -219,7 +220,7 @@ const LoginPage = ({ leftBgImage = null }) => {
 
   const handleGoogleLogin = () => {
     const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    const googleRedirectUri = `${window.location.origin}/auth/google/callback`;
+    const googleRedirectUri = resolveGoogleRedirectUri();
     if (!GOOGLE_CLIENT_ID) {
       setToast("구글 로그인 설정이 준비되지 않았습니다.");
       return;

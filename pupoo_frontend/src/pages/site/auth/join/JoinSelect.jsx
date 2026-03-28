@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { tokenStore } from "../../../../app/http/tokenStore";
 import { NaverBrandMark } from "../../../../shared/ui/NaverBrandMark";
+import { resolveGoogleRedirectUri } from "../googleRedirectUri";
 
 const KakaoIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -225,7 +226,7 @@ export default function JoinSelect() {
   const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
   const NAVER_CLIENT_ID = import.meta.env.VITE_NAVER_CLIENT_ID;
   const kakaoRedirectUri = `${window.location.origin}/auth/kakao/callback`;
-  const googleRedirectUri = `${window.location.origin}/auth/google/callback`;
+  const googleRedirectUri = resolveGoogleRedirectUri();
   const naverRedirectUri = `${window.location.origin}/naver/callback`;
 
   const handleKakaoContinue = () => {

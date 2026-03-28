@@ -60,6 +60,8 @@ import GoogleJoin from "./pages/site/auth/join/GoogleJoin";
 /* Payment */
 import Checkout from "./pages/site/payment/Checkout";
 import PaymentApprove from "./pages/site/payment/PaymentApprove";
+import PaymentCancel from "./pages/site/payment/PaymentCancel";
+import PaymentFail from "./pages/site/payment/PaymentFail";
 
 /* Event */
 import Current from "./pages/site/event/Current";
@@ -538,6 +540,8 @@ export default function App() {
           <Route path="/event/eventschedule" element={<EventSchedule />} />
           <Route path="/payment/checkout" element={<Checkout />} />
           <Route path="/payment/approve" element={<PaymentApprove />} />
+          <Route path="/payment/cancel" element={<PaymentCancel />} />
+          <Route path="/payment/fail" element={<PaymentFail />} />
           <Route
             path="/program/experience/:eventId?"
             element={<Experience />}

@@ -2615,6 +2615,11 @@ function DashboardContent({ eventId }) {
           guideText: getProgramGuideText(congestionPercent),
           tone,
           hasWaitInfo,
+          hasRealtimeSignal:
+            hasWaitInfo ||
+            (mappedCongestionRaw !== null &&
+              mappedCongestionRaw !== undefined &&
+              safePercent(mappedCongestionRaw) > 0),
           isOperatingNow,
         };
       })
@@ -2629,12 +2634,36 @@ function DashboardContent({ eventId }) {
     [allProgramRows],
   );
 
+  const strictlyOperatingProgramRows = useMemo(
+    () => allProgramRows.filter((program) => program.isOperatingNow),
+    [allProgramRows],
+  );
+
+  const realtimeSignalProgramRows = useMemo(
+    () => allProgramRows.filter((program) => program.hasRealtimeSignal),
+    [allProgramRows],
+  );
+
+  const usingRealtimeProgramFallback =
+    !isEndedEvent &&
+    !isPlannedEvent &&
+    strictlyOperatingProgramRows.length === 0 &&
+    realtimeSignalProgramRows.length > 0;
+
   const operatingProgramRows = useMemo(
     () =>
       isEndedEvent
         ? allProgramRows
-        : allProgramRows.filter((program) => program.isOperatingNow),
-    [allProgramRows, isEndedEvent],
+        : usingRealtimeProgramFallback
+          ? realtimeSignalProgramRows
+          : strictlyOperatingProgramRows,
+    [
+      allProgramRows,
+      isEndedEvent,
+      realtimeSignalProgramRows,
+      strictlyOperatingProgramRows,
+      usingRealtimeProgramFallback,
+    ],
   );
 
   const queueProgramRows = useMemo(
@@ -3015,8 +3044,20 @@ function DashboardContent({ eventId }) {
               ? "종료 시점 인기 프로그램 TOP3"
               : "인기 프로그램 TOP3"}
           </div>
-          <span className="rt-card-tag">{isEndedEvent ? "종료 시점 기준" : "지금 사람들이 몰리는 프로그램"}</span>
+          <span className="rt-card-tag">
+            {isEndedEvent
+              ? "종료 시점 기준"
+              : usingRealtimeProgramFallback
+                ? "실시간 집계 기준"
+                : "지금 사람들이 몰리는 프로그램"}
+          </span>
         </div>
+
+        {usingRealtimeProgramFallback ? (
+          <div className="rt-section-lead">
+            현재 시각과 프로그램 일정이 정확히 맞지 않아도, 실시간 대기와 혼잡 집계가 잡힌 프로그램부터 우선 보여주고 있습니다.
+          </div>
+        ) : null}
 
         {!hasAnyPrograms || !hasOperatingPrograms ? (
           <div className="rt-empty">
@@ -3050,7 +3091,13 @@ function DashboardContent({ eventId }) {
             </div>
             {isEndedEvent ? "종료 시점 바로 참여 프로그램" : "바로 참여 프로그램"}
           </div>
-          <span className="rt-card-tag">{isEndedEvent ? "종료 시점 기준" : "대기 짧은 순"}</span>
+          <span className="rt-card-tag">
+            {isEndedEvent
+              ? "종료 시점 기준"
+              : usingRealtimeProgramFallback
+                ? "실시간 집계 기준"
+                : "대기 짧은 순"}
+          </span>
         </div>
 
         {!hasAnyPrograms || !hasOperatingPrograms ? (
