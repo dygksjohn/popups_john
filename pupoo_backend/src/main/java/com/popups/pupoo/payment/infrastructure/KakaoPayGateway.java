@@ -15,16 +15,28 @@ import com.popups.pupoo.common.exception.ErrorCode;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Component;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.client.RestClientResponseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Set;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 @Component
 public class KakaoPayGateway implements PaymentGateway {
 
     private static final Logger log = LoggerFactory.getLogger(KakaoPayGateway.class);
+    private static final Set<String> SUPPORTED_CALLBACK_ORIGINS = Set.of(
+            "https://pupoo.site",
+            "https://www.pupoo.site"
+    );
 
     private final KakaoPayClient client;
     private final KakaoPayProperties props;
@@ -115,9 +127,10 @@ private PaymentTransaction findLatestTxForUpdate(Long paymentId) {
         }
 
         // URL 확정 (paymentId 치환)
-        String approvalUrl = resolveCallbackUrl("approvalUrl", props.approvalUrl(), payment.getPaymentId());
-        String cancelUrl = resolveCallbackUrl("cancelUrl", props.cancelUrl(), payment.getPaymentId());
-        String failUrl = resolveCallbackUrl("failUrl", props.failUrl(), payment.getPaymentId());
+        String callbackOrigin = resolveRequestCallbackOrigin();
+        String approvalUrl = resolveCallbackUrl("approvalUrl", props.approvalUrl(), payment.getPaymentId(), callbackOrigin);
+        String cancelUrl = resolveCallbackUrl("cancelUrl", props.cancelUrl(), payment.getPaymentId(), callbackOrigin);
+        String failUrl = resolveCallbackUrl("failUrl", props.failUrl(), payment.getPaymentId(), callbackOrigin);
 
         // === 요청값 기본 검증(카카오가 500으로 뭉개는 케이스 예방) ===
         // 기능: 결제 요청값 검증
@@ -352,7 +365,7 @@ private PaymentTransaction findLatestTxForUpdate(Long paymentId) {
      * 카카오 API가 정수 금액을 요구하는 경우가 많아서 방어적으로 처리.
      * - 소수점이 들어오면 예외로 막아버림(정책). 필요하면 반올림/절삭 정책으로 바꿔.
      */
-    private String resolveCallbackUrl(String label, String template, Long paymentId) {
+    private String resolveCallbackUrl(String label, String template, Long paymentId, String callbackOrigin) {
         if (template == null || template.isBlank()) {
             throw new BusinessException(ErrorCode.PAYMENT_PG_ERROR, "KakaoPay config invalid: " + label + " blank");
         }
@@ -373,7 +386,80 @@ private PaymentTransaction findLatestTxForUpdate(Long paymentId) {
                     label, template, resolved);
         }
 
-        return resolved;
+        String preferredOrigin = normalizeSupportedCallbackOrigin(callbackOrigin);
+        if (preferredOrigin == null) {
+            return resolved;
+        }
+
+        try {
+            URI resolvedUri = URI.create(resolved);
+            URI preferredUri = URI.create(preferredOrigin);
+            URI remappedUri = new URI(
+                    preferredUri.getScheme(),
+                    preferredUri.getAuthority(),
+                    resolvedUri.getPath(),
+                    resolvedUri.getQuery(),
+                    resolvedUri.getFragment()
+            );
+            return remappedUri.toString();
+        } catch (IllegalArgumentException | URISyntaxException e) {
+            log.warn("[KakaoPay][CONFIG] failed to remap {} with callbackOrigin={}. fallback={}",
+                    label, callbackOrigin, resolved, e);
+            return resolved;
+        }
+    }
+
+    private String resolveRequestCallbackOrigin() {
+        RequestAttributes attributes = RequestContextHolder.getRequestAttributes();
+        if (!(attributes instanceof ServletRequestAttributes servletAttributes)) {
+            return null;
+        }
+
+        HttpServletRequest request = servletAttributes.getRequest();
+        String origin = trimToNull(request.getHeader("Origin"));
+        if (origin != null) {
+            return origin;
+        }
+
+        String referer = trimToNull(request.getHeader("Referer"));
+        if (referer == null) {
+            return null;
+        }
+
+        try {
+            URI uri = URI.create(referer);
+            if (uri.getScheme() == null || uri.getAuthority() == null) {
+                return null;
+            }
+            return uri.getScheme() + "://" + uri.getAuthority();
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private String normalizeSupportedCallbackOrigin(String callbackOrigin) {
+        if (callbackOrigin == null || callbackOrigin.isBlank()) {
+            return null;
+        }
+
+        try {
+            URI uri = URI.create(callbackOrigin.trim());
+            if (uri.getScheme() == null || uri.getAuthority() == null) {
+                return null;
+            }
+            String normalized = uri.getScheme() + "://" + uri.getAuthority();
+            return SUPPORTED_CALLBACK_ORIGINS.contains(normalized) ? normalized : null;
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 
     private int toIntAmount(BigDecimal amount) {
