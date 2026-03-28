@@ -24,26 +24,24 @@ import ds from "../shared/designTokens";
 import { countAdminStatuses, resolveAdminStatus } from "../shared/adminStatus";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken, clearToken } from "../../../api/noticeApi";
-import HomeDashboard from "./HomeDashboard";
+const HomeDashboard = lazy(() => import("./HomeDashboard"));
 const AdminChatBot = lazy(() => import("./AdminChatBot"));
 
-/* page imports */
-import EventManage from "../event/eventManage";
-import ProgramManage from "../program/programManage";
-import BoardManage from "../board/boardManage";
-import Notice from "../board/Notice";
-import PastEvents from "../past/PastEvents";
-import ZoneManage from "../zone/zoneManage";
-import ContestManage from "../contest/contestManage";
-import SessionManage from "../session/sessionManage";
-import Gallery from "../gallery/Gallery";
-import ParticipantList from "../participant/ParticipantList";
-import PaymentManage from "../participant/PaymentManage";
-import AlertManage from "../participant/AlertManage";
-import RefundManage from "../refund/RefundManage";
-import AdminLogManage from "../adminlog/AdminLogManage";
-import ReportManage from "../report/ReportManage";
-/**/
+const EventManage = lazy(() => import("../event/eventManage"));
+const ProgramManage = lazy(() => import("../program/programManage"));
+const BoardManage = lazy(() => import("../board/boardManage"));
+const Notice = lazy(() => import("../board/Notice"));
+const PastEvents = lazy(() => import("../past/PastEvents"));
+const ZoneManage = lazy(() => import("../zone/zoneManage"));
+const ContestManage = lazy(() => import("../contest/contestManage"));
+const SessionManage = lazy(() => import("../session/sessionManage"));
+const Gallery = lazy(() => import("../gallery/Gallery"));
+const ParticipantList = lazy(() => import("../participant/ParticipantList"));
+const PaymentManage = lazy(() => import("../participant/PaymentManage"));
+const AlertManage = lazy(() => import("../participant/AlertManage"));
+const RefundManage = lazy(() => import("../refund/RefundManage"));
+const AdminLogManage = lazy(() => import("../adminlog/AdminLogManage"));
+const ReportManage = lazy(() => import("../report/ReportManage"));
 
 const DASHBOARD_TARGET_KEY = "pupoo_admin_dashboard_target";
 const DASHBOARD_TARGET_EVENT = "pupoo-admin-dashboard-target";
@@ -924,7 +922,9 @@ export default function Dashboard() {
                 : "20px 28px 28px",
           }}
         >
-          {renderPage()}
+          <Suspense fallback={null}>
+            {renderPage()}
+          </Suspense>
         </div>
       </main>
       <Suspense fallback={null}>
