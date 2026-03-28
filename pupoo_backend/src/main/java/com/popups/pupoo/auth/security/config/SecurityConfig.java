@@ -108,6 +108,7 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.GET, "/api/auth/oauth/**").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/auth/email/verification/confirm").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/chatbot/chat").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/security/csp/report").permitAll()
 
             .requestMatchers(HttpMethod.GET, "/api/ping").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/health").permitAll()

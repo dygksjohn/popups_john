@@ -16,6 +16,7 @@ on:
       - "pupoo_backend/**"
       - "pupoo_frontend/**"
       - "scripts/check-import-case.mjs"
+      - "scripts/ensure-frontend-csp-report-only.sh"
   workflow_dispatch:
 
 concurrency:
@@ -47,6 +48,7 @@ jobs:
               - ".github/workflows/deploy.yml"
               - "pupoo_frontend/**"
               - "scripts/check-import-case.mjs"
+              - "scripts/ensure-frontend-csp-report-only.sh"
             cluster_sync:
               - ".github/workflows/deploy.yml"
               - "k8s/**"
@@ -79,6 +81,7 @@ jobs:
       VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
       VITE_NAVER_CLIENT_ID: ${{ vars.VITE_NAVER_CLIENT_ID }}
       VITE_KAKAO_MAP_KEY: ${{ vars.VITE_KAKAO_MAP_KEY || 'b338ac0a2a4b79c4fdffe57afe4591c4' }}
+      FRONTEND_CSP_REPORT_URI: ${{ vars.FRONTEND_CSP_REPORT_URI || 'https://api.pupoo.site/api/security/csp/report' }}
 
     steps:
       - name: Checkout repository
@@ -114,6 +117,12 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Ensure frontend CSP report-only policy
+        env:
+          FRONTEND_CF_DISTRIBUTION_ID: ${{ vars.FRONTEND_CF_DISTRIBUTION_ID }}
+          FRONTEND_CSP_REPORT_URI: ${{ env.FRONTEND_CSP_REPORT_URI }}
+        run: bash ./scripts/ensure-frontend-csp-report-only.sh
 
       - name: Sync frontend assets to S3
         run: aws s3 sync pupoo_frontend/dist/ "s3://${{ vars.FRONTEND_S3_BUCKET }}" --delete
