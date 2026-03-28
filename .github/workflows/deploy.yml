@@ -17,7 +17,7 @@ on:
       - "pupoo_frontend/**"
       - "scripts/check-import-case.mjs"
       - "scripts/configure-aws-oidc.sh"
-      - "scripts/ensure-frontend-csp-report-only.sh"
+      - "scripts/ensure-frontend-csp.sh"
   workflow_dispatch:
     inputs:
       run_ai_train:
@@ -105,7 +105,7 @@ jobs:
               - "pupoo_frontend/**"
               - "scripts/check-import-case.mjs"
               - "scripts/configure-aws-oidc.sh"
-              - "scripts/ensure-frontend-csp-report-only.sh"
+              - "scripts/ensure-frontend-csp.sh"
             cluster_sync:
               - ".github/workflows/deploy.yml"
               - "k8s/**"
@@ -142,6 +142,7 @@ jobs:
       VITE_NAVER_CLIENT_ID: ${{ vars.VITE_NAVER_CLIENT_ID }}
       VITE_KAKAO_MAP_KEY: ${{ vars.VITE_KAKAO_MAP_KEY || 'b338ac0a2a4b79c4fdffe57afe4591c4' }}
       FRONTEND_CSP_REPORT_URI: ${{ vars.FRONTEND_CSP_REPORT_URI || 'https://api.pupoo.site/api/security/csp/report' }}
+      FRONTEND_CSP_MODE: ${{ vars.FRONTEND_CSP_MODE || 'enforce' }}
       AWS_REGION: ${{ vars.AWS_REGION }}
 
     steps:
@@ -182,7 +183,8 @@ jobs:
         env:
           FRONTEND_CF_DISTRIBUTION_ID: ${{ vars.FRONTEND_CF_DISTRIBUTION_ID }}
           FRONTEND_CSP_REPORT_URI: ${{ env.FRONTEND_CSP_REPORT_URI }}
-        run: bash ./scripts/ensure-frontend-csp-report-only.sh
+          FRONTEND_CSP_MODE: ${{ env.FRONTEND_CSP_MODE }}
+        run: bash ./scripts/ensure-frontend-csp.sh
 
       - name: Sync frontend assets to S3
         run: aws s3 sync pupoo_frontend/dist/ "s3://${{ vars.FRONTEND_S3_BUCKET }}" --delete

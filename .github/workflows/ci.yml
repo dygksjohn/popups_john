@@ -18,6 +18,7 @@ on:
       - "pupoo_frontend/**"
       - "scripts/check-import-case.mjs"
       - "scripts/configure-aws-oidc.sh"
+      - "scripts/ensure-frontend-csp.sh"
   push:
     branches:
       - develop
@@ -30,6 +31,7 @@ on:
       - "pupoo_frontend/**"
       - "scripts/check-import-case.mjs"
       - "scripts/configure-aws-oidc.sh"
+      - "scripts/ensure-frontend-csp.sh"
   schedule:
     # Every Monday 03:00 KST / Sunday 18:00 UTC.
     - cron: "0 18 * * 0"
@@ -84,6 +86,7 @@ jobs:
               - ".github/workflows/deploy.yml"
               - ".github/dependabot.yml"
               - "scripts/configure-aws-oidc.sh"
+              - "scripts/ensure-frontend-csp.sh"
 
   workflow-guard:
     runs-on: ubuntu-latest
@@ -100,7 +103,7 @@ jobs:
       - name: Validate workflow helper scripts
         run: |
           bash -n ./scripts/configure-aws-oidc.sh
-          bash -n ./scripts/ensure-frontend-csp-report-only.sh
+          bash -n ./scripts/ensure-frontend-csp.sh
           ruby -e "require 'yaml'; YAML.load_file('.github/dependabot.yml')"
 
       - name: Block deprecated AWS credentials action

@@ -12,21 +12,41 @@ if [[ -z "${FRONTEND_CF_DISTRIBUTION_ID:-}" ]]; then
   exit 1
 fi
 
-FUNCTION_NAME="${FRONTEND_CSP_FUNCTION_NAME:-pupoo-frontend-csp-report-only}"
+FUNCTION_NAME="${FRONTEND_CSP_FUNCTION_NAME:-pupoo-frontend-csp}"
 CANONICAL_FUNCTION_NAME="${FRONTEND_CANONICAL_HOST_FUNCTION_NAME:-pupoo-frontend-canonical-host}"
 REPORT_URI="${FRONTEND_CSP_REPORT_URI:-https://api.pupoo.site/api/security/csp/report}"
 CANONICAL_HOST="${FRONTEND_CANONICAL_HOST:-www.pupoo.site}"
 REDIRECT_SOURCE_HOST="${FRONTEND_REDIRECT_SOURCE_HOST:-pupoo.site}"
-CSP_REPORT_ONLY="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; script-src 'self' 'unsafe-eval' 'report-sample' https://dapi.kakao.com https://t1.daumcdn.net; style-src 'self' 'unsafe-inline' 'report-sample' https://fonts.googleapis.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https://cdn.pupoo.site https://images.unsplash.com https://k.kakaocdn.net https://*.kakaocdn.net https://phinf.pstatic.net https://lh3.googleusercontent.com https://t1.daumcdn.net; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net; connect-src 'self' https://api.pupoo.site https://dapi.kakao.com; frame-src 'self' https://maps.google.com https://www.google.com; media-src 'self' blob: https://cdn.pupoo.site; worker-src 'self' blob:; manifest-src 'self'; report-uri ${REPORT_URI}; upgrade-insecure-requests"
+CSP_MODE="${FRONTEND_CSP_MODE:-enforce}"
+CSP_POLICY="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; script-src 'self' 'unsafe-eval' 'report-sample' https://dapi.kakao.com https://t1.daumcdn.net; style-src 'self' 'unsafe-inline' 'report-sample' https://fonts.googleapis.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https://cdn.pupoo.site https://images.unsplash.com https://k.kakaocdn.net https://*.kakaocdn.net https://phinf.pstatic.net https://lh3.googleusercontent.com https://t1.daumcdn.net; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net; connect-src 'self' https://api.pupoo.site https://dapi.kakao.com; frame-src 'self' https://maps.google.com https://www.google.com; media-src 'self' blob: https://cdn.pupoo.site; worker-src 'self' blob:; manifest-src 'self'; report-uri ${REPORT_URI}; upgrade-insecure-requests"
+
+case "${CSP_MODE}" in
+  enforce)
+    response_header_name="content-security-policy"
+    stale_header_name="content-security-policy-report-only"
+    function_comment="PUPOO frontend CSP enforce header injection"
+    ;;
+  report-only)
+    response_header_name="content-security-policy-report-only"
+    stale_header_name="content-security-policy"
+    function_comment="PUPOO frontend CSP report-only header injection"
+    ;;
+  *)
+    echo "FRONTEND_CSP_MODE must be 'enforce' or 'report-only'" >&2
+    exit 1
+    ;;
+esac
 
 workdir="$(mktemp -d)"
 trap 'rm -rf "${workdir}"' EXIT
 
-function_code_file="${workdir}/frontend-csp-report-only.js"
+function_code_file="${workdir}/frontend-csp.js"
 canonical_function_code_file="${workdir}/frontend-canonical-host.js"
 distribution_config_file="${workdir}/distribution-config.json"
 
-csp_js_literal="$(jq -Rn --arg value "${CSP_REPORT_ONLY}" '$value')"
+csp_js_literal="$(jq -Rn --arg value "${CSP_POLICY}" '$value')"
+response_header_name_literal="$(jq -Rn --arg value "${response_header_name}" '$value')"
+stale_header_name_literal="$(jq -Rn --arg value "${stale_header_name}" '$value')"
 canonical_host_js_literal="$(jq -Rn --arg value "${CANONICAL_HOST}" '$value')"
 redirect_source_host_js_literal="$(jq -Rn --arg value "${REDIRECT_SOURCE_HOST}" '$value')"
 
@@ -41,7 +61,8 @@ function handler(event) {
     return response;
   }
 
-  headers["content-security-policy-report-only"] = { value: ${csp_js_literal} };
+  delete headers[${stale_header_name_literal}];
+  headers[${response_header_name_literal}] = { value: ${csp_js_literal} };
   return response;
 }
 EOF
@@ -110,12 +131,12 @@ if aws cloudfront describe-function --name "${FUNCTION_NAME}" --stage DEVELOPMEN
   aws cloudfront update-function \
     --name "${FUNCTION_NAME}" \
     --if-match "${function_etag}" \
-    --function-config Comment="PUPOO frontend CSP report-only header injection",Runtime=cloudfront-js-2.0 \
+    --function-config Comment="${function_comment}",Runtime=cloudfront-js-2.0 \
     --function-code "fileb://${function_code_file}" >/dev/null
 else
   aws cloudfront create-function \
     --name "${FUNCTION_NAME}" \
-    --function-config Comment="PUPOO frontend CSP report-only header injection",Runtime=cloudfront-js-2.0 \
+    --function-config Comment="${function_comment}",Runtime=cloudfront-js-2.0 \
     --function-code "fileb://${function_code_file}" >/dev/null
 fi
 
@@ -171,4 +192,4 @@ if [[ "${current_function_arn}" != "${function_arn}" || "${current_canonical_fun
   aws cloudfront wait distribution-deployed --id "${FRONTEND_CF_DISTRIBUTION_ID}"
 fi
 
-echo "Applied CloudFront functions ${CANONICAL_FUNCTION_NAME} (${canonical_function_arn}) and ${FUNCTION_NAME} (${function_arn}) to distribution ${FRONTEND_CF_DISTRIBUTION_ID}"
+echo "Applied CloudFront functions ${CANONICAL_FUNCTION_NAME} (${canonical_function_arn}) and ${FUNCTION_NAME} (${function_arn}) to distribution ${FRONTEND_CF_DISTRIBUTION_ID} with CSP mode ${CSP_MODE}"
