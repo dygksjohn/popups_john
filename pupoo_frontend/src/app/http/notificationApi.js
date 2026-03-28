@@ -23,6 +23,7 @@ export function emitNotificationUnreadCount(count) {
  * - GET /api/notifications — 내 인박스(미열람) 목록 페이징
  * - GET /api/notifications/unread-count — 읽지 않은 알림 수
  * - POST /api/notifications/{inboxId}/click — 읽음 처리(클릭), targetType/targetId 반환
+ * - DELETE /api/notifications/{inboxId} — 이동 없이 인박스에서 제거
  */
 export const notificationApi = {
   /**
@@ -56,6 +57,13 @@ export const notificationApi = {
     if (inboxId == null) throw new Error("notificationApi.click: inboxId is required");
     return axiosInstance
       .post(`/api/notifications/${inboxId}/click`)
+      .then((res) => unwrap(res));
+  },
+
+  delete(inboxId) {
+    if (inboxId == null) throw new Error("notificationApi.delete: inboxId is required");
+    return axiosInstance
+      .delete(`/api/notifications/${inboxId}`)
       .then((res) => unwrap(res));
   },
 };

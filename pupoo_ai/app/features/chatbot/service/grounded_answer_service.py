@@ -27,6 +27,15 @@ _FAQ_KEYWORDS = (
 )
 _SUMMARY_KEYWORDS = ("\uc694\uc57d", "\ud604\ud669", "\uc0c1\ud669", "\uba87 \uac1c", "\uac1c\uc218", "\ud1b5\uacc4", "\uccb4\ud06c\uc778")
 _RECOMMEND_KEYWORDS = ("\ucd94\ucc9c", "\ud3ec\uc778\ud2b8", "\uac15\uc870", "\uc7a5\uc810")
+_GREETING_KEYWORDS = ("\uc548\ub155", "\ubc18\uac00\uc6cc", "\ud558\uc774", "hello", "hi")
+_CAPABILITY_KEYWORDS = (
+    "\ubb50 \ud560 \uc218 \uc788\uc5b4",
+    "\ubb34\uc5c7\uc744 \ub3c4\uc640\uc918",
+    "\ubb50\ud574",
+    "\ub3c4\uc640\uc904 \uc218 \uc788\uc5b4",
+    "\uc5b4\ub5a4 \uac78 \ud560 \uc218 \uc788\uc5b4",
+)
+_NAME_KEYWORDS = ("\uc774\ub984", "\ub204\uad6c\uc57c", "\uc790\uae30\uc18c\uac1c", "\uc815\uccb4")
 _KEYWORD_CANDIDATES = (
     "\uc8fc\ucc28",
     "\ud658\ubd88",
@@ -78,6 +87,10 @@ class GroundedAnswerService:
         self._backend_client = backend_client
 
     async def answer_user(self, message: str) -> str | None:
+        conversational_reply = self._build_user_conversational_response(message)
+        if conversational_reply is not None:
+            return conversational_reply
+
         try:
             if self._is_event_query(message):
                 event = await self._select_event(message)
@@ -102,6 +115,10 @@ class GroundedAnswerService:
         return None
 
     async def answer_admin(self, message: str) -> str | None:
+        conversational_reply = self._build_admin_conversational_response(message)
+        if conversational_reply is not None:
+            return conversational_reply
+
         try:
             if self._is_admin_event_summary_query(message):
                 summary = await self._backend_client.get_ai_summary()
@@ -266,6 +283,34 @@ class GroundedAnswerService:
             if candidate.lower() in message.lower():
                 terms.append(candidate)
         return tuple(dict.fromkeys(terms))
+
+    def _build_user_conversational_response(self, message: str) -> str | None:
+        if _contains_any(message, _NAME_KEYWORDS):
+            return (
+                "\uc800\ub294 \ud478\ub9ac\uc608\uc694. "
+                "\ud589\uc0ac \uc548\ub0b4, \uccb4\ud06c\uc778, \ub85c\uadf8\uc778, \uacb0\uc81c\u00b7\ud658\ubd88, "
+                "\ub9c8\uc774\ud398\uc774\uc9c0 \uc774\uc6a9 \uac19\uc740 \uac78 \ub3c4\uc640\ub4dc\ub9b4 \uc218 \uc788\uc5b4\uc694."
+            )
+
+        if _contains_any(message, _CAPABILITY_KEYWORDS):
+            return (
+                "\uc9c0\uae08 \ud478\ub9ac\uac00 \ub3c4\uc640\ub4dc\ub9b4 \uc218 \uc788\ub294 \uac74 "
+                "\uc9c4\ud589 \uc911 \ud589\uc0ac, \uc77c\uc815\u00b7\uc7a5\uc18c, QR \uccb4\ud06c\uc778, \ub85c\uadf8\uc778/\ud68c\uc6d0\uac00\uc785, "
+                "\uacb0\uc81c\u00b7\ud658\ubd88, \ub9c8\uc774\ud398\uc774\uc9c0 \uc774\uc6a9 \uc548\ub0b4\uc608\uc694. "
+                "\uad81\uae08\ud55c \uac78 \ud558\ub098\ub9cc \ub9d0\ud574 \uc8fc\uc2dc\uba74 \ubc14\ub85c \uc774\uc5b4\uc11c \uc548\ub0b4\ud574\ub4dc\ub9b4\uac8c\uc694."
+            )
+
+        return None
+
+    def _build_admin_conversational_response(self, message: str) -> str | None:
+        if _contains_any(message, _NAME_KEYWORDS):
+            return (
+                "\uc800\ub294 \ub204\ub9ac\uc608\uc694. "
+                "\ud589\uc0ac \uc694\uc57d, \ud654\uba74 \uc774\ub3d9 \uc548\ub0b4, \uacf5\uc9c0\u00b7\uc54c\ub9bc \ucd08\uc548, "
+                "\uc6b4\uc601 \ud604\ud669 \ud30c\uc545\uc744 \ub3c4\uc640\ub4dc\ub9b4 \uc218 \uc788\uc5b4\uc694."
+            )
+
+        return None
 
     def _build_user_event_response(self, event: dict[str, Any], *, prefer_current: bool) -> str:
         status = str(event.get("status") or "")

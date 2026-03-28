@@ -3,6 +3,7 @@ package com.popups.pupoo.notification.api;
 
 import com.popups.pupoo.auth.security.util.SecurityUtil;
 import com.popups.pupoo.common.api.ApiResponse;
+import com.popups.pupoo.common.api.MessageResponse;
 import com.popups.pupoo.notification.application.NotificationSseService;
 import com.popups.pupoo.notification.application.NotificationStreamTokenService;
 import com.popups.pupoo.notification.application.NotificationService;
@@ -13,6 +14,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -89,6 +91,16 @@ public class NotificationController {
     public ApiResponse<NotificationResponse> click(@PathVariable Long inboxId) {
         Long userId = securityUtil.currentUserId();
         return ApiResponse.success(notificationService.click(userId, inboxId));
+    }
+
+    /**
+     * 현재 사용자의 인박스 알림을 삭제한다.
+     */
+    @DeleteMapping("/{inboxId}")
+    public ApiResponse<MessageResponse> delete(@PathVariable Long inboxId) {
+        Long userId = securityUtil.currentUserId();
+        notificationService.delete(userId, inboxId);
+        return ApiResponse.success(new MessageResponse("NOTIFICATION_DELETED"));
     }
 
     /**

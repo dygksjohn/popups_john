@@ -66,6 +66,16 @@ async def test_user_service_uses_user_prompt():
 
 
 @pytest.mark.asyncio
+async def test_user_name_question_returns_puri_identity():
+    request = ChatRequest(message="\ub108 \uc774\ub984\uc774 \ubb50\uc57c?")
+
+    response = await chat(request)
+
+    assert "\ud478\ub9ac" in response.message
+    assert response.actions == []
+
+
+@pytest.mark.asyncio
 async def test_admin_service_uses_admin_prompt():
     request = ChatRequest(
         message="\ubd84\uc704\uae30\ub97c \uc9e7\uac8c \uc124\uba85\ud574\uc918",

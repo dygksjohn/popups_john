@@ -455,7 +455,13 @@ const styles = `
     justify-content: space-between;
     gap: 10px;
   }
-  .mp-noti-delete {
+  .mp-noti-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .mp-noti-action {
     border: none;
     background: #f8f9fc;
     color: #9ca3af;
@@ -467,11 +473,19 @@ const styles = `
     flex-shrink: 0;
     transition: background 0.15s, color 0.15s;
   }
-  .mp-noti-delete:hover:not(:disabled) {
+  .mp-noti-action.move {
+    background: #f0f9e4;
+    color: #7ab33e;
+  }
+  .mp-noti-action.move:hover:not(:disabled) {
+    background: #e3f3cf;
+    color: #5f8f25;
+  }
+  .mp-noti-action.delete:hover:not(:disabled) {
     background: #fee2e2;
     color: #dc2626;
   }
-  .mp-noti-delete:disabled {
+  .mp-noti-action:disabled {
     opacity: 0.55;
     cursor: not-allowed;
   }
@@ -1110,6 +1124,14 @@ function fmtRelative(value) {
   return fmtDateTime(value);
 }
 
+function resolveNotificationTargetPath(targetType, targetId) {
+  if (targetType === "EVENT") return "/event/current";
+  if (targetType === "NOTICE" && targetId != null) {
+    return `/community/notice/${targetId}`;
+  }
+  return null;
+}
+
 function statusClass(status) {
   const key = String(status || "").toUpperCase();
   if (key === "APPLIED") return "applied";
@@ -1213,6 +1235,7 @@ export default function MyPage() {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [deletingInboxIds, setDeletingInboxIds] = useState([]);
+  const [movingInboxIds, setMovingInboxIds] = useState([]);
   const [interests, setInterests] = useState([]);
   const [subscriptions, setSubscriptions] = useState([]);
   const [subscriptionError, setSubscriptionError] = useState("");
@@ -1597,6 +1620,17 @@ export default function MyPage() {
     navigate(`/program/current`);
   };
 
+  const removeNotificationFromInbox = useCallback((inboxId) => {
+    setNotifications((prev) =>
+      prev.filter((item) => Number(item?.inboxId) !== Number(inboxId)),
+    );
+    setUnreadCount((prev) => {
+      const next = Math.max(0, (Number(prev) || 0) - 1);
+      emitNotificationUnreadCount(next);
+      return next;
+    });
+  }, []);
+
   const handleDeleteNotification = useCallback(
     async (inboxId) => {
       if (inboxId == null || deletingInboxIds.includes(inboxId)) return;
@@ -1605,22 +1639,50 @@ export default function MyPage() {
       setError("");
 
       try {
-        await notificationApi.click(inboxId);
-        setNotifications((prev) =>
-          prev.filter((item) => Number(item?.inboxId) !== Number(inboxId)),
-        );
-        setUnreadCount((prev) => {
-          const next = Math.max(0, (Number(prev) || 0) - 1);
-          emitNotificationUnreadCount(next);
-          return next;
-        });
+        await notificationApi.delete(inboxId);
+        removeNotificationFromInbox(inboxId);
       } catch (e) {
         setError(e?.message || "알림 삭제에 실패했습니다.");
       } finally {
         setDeletingInboxIds((prev) => prev.filter((id) => id !== inboxId));
       }
     },
-    [deletingInboxIds],
+    [deletingInboxIds, removeNotificationFromInbox],
+  );
+
+  const handleMoveNotification = useCallback(
+    async (notification) => {
+      const inboxId = notification?.inboxId;
+      const fallbackPath = resolveNotificationTargetPath(
+        notification?.targetType,
+        notification?.targetId,
+      );
+
+      if (
+        inboxId == null ||
+        !fallbackPath ||
+        movingInboxIds.includes(inboxId)
+      ) {
+        return;
+      }
+
+      setMovingInboxIds((prev) => [...prev, inboxId]);
+      setError("");
+
+      try {
+        // 이동은 클릭 API를 사용해 서버에서 읽음 처리 후 목적지 정보를 돌려받는다.
+        const res = await notificationApi.click(inboxId);
+        removeNotificationFromInbox(inboxId);
+        const targetPath =
+          resolveNotificationTargetPath(res?.targetType, res?.targetId) || fallbackPath;
+        if (targetPath) navigate(targetPath);
+      } catch (e) {
+        setError(e?.message || "알림 이동에 실패했습니다.");
+      } finally {
+        setMovingInboxIds((prev) => prev.filter((id) => id !== inboxId));
+      }
+    },
+    [movingInboxIds, navigate, removeNotificationFromInbox],
   );
 
   const setSubscriptionSaving = useCallback((interestId, saving) => {
@@ -1742,19 +1804,35 @@ export default function MyPage() {
   const renderNotificationItem = (noti, withAbsoluteTime = false) => {
     const inboxId = noti?.inboxId;
     const isDeleting = deletingInboxIds.includes(inboxId);
+    const isMoving = movingInboxIds.includes(inboxId);
+    const canMove = Boolean(
+      resolveNotificationTargetPath(noti?.targetType, noti?.targetId),
+    );
 
     return (
       <div className="mp-item" key={inboxId || `${noti?.title}-${noti?.receivedAt}`}>
         <div className="mp-noti-header">
           <div className="mp-noti-title">{noti?.title || "알림"}</div>
-          <button
-            type="button"
-            className="mp-noti-delete"
-            onClick={() => handleDeleteNotification(inboxId)}
-            disabled={isDeleting}
-          >
-            {isDeleting ? "삭제 중" : "삭제"}
-          </button>
+          <div className="mp-noti-actions">
+            {canMove ? (
+              <button
+                type="button"
+                className="mp-noti-action move"
+                onClick={() => handleMoveNotification(noti)}
+                disabled={isDeleting || isMoving}
+              >
+                {isMoving ? "이동 중" : "이동"}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="mp-noti-action delete"
+              onClick={() => handleDeleteNotification(inboxId)}
+              disabled={isDeleting || isMoving}
+            >
+              {isDeleting ? "삭제 중" : "삭제"}
+            </button>
+          </div>
         </div>
         <div className="mp-noti-content">{noti?.content || "-"}</div>
         <div className="mp-noti-time">

@@ -102,6 +102,14 @@ public class NotificationService {
         return new NotificationResponse(inbox.getTargetType(), inbox.getTargetId());
     }
 
+    @Transactional
+    public void delete(Long userId, Long inboxId) {
+        int deleted = notificationInboxRepository.deleteByInboxIdAndUserId(inboxId, userId);
+        if (deleted < 1) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
+        }
+    }
+
     public NotificationSettingsResponse getSettings(Long userId) {
         NotificationSettings settings = notificationSettingsRepository.findById(userId)
                 .orElseGet(() -> NotificationSettings.createDefault(userId));

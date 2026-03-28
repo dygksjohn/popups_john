@@ -68,6 +68,14 @@ class ChatbotServiceRoleTest(unittest.IsolatedAsyncioTestCase):
             USER_SYSTEM_PROMPT,
         )
 
+    async def test_user_name_question_returns_puri_identity(self):
+        request = ChatRequest(message="\ub108 \uc774\ub984\uc774 \ubb50\uc57c?")
+
+        response = await chat(request)
+
+        self.assertIn("\ud478\ub9ac", response.message)
+        self.assertEqual(response.actions, [])
+
 
 if __name__ == "__main__":
     unittest.main()
