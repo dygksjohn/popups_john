@@ -30,7 +30,7 @@ public interface ProgramSpeakerMappingRepository extends JpaRepository<ProgramSp
                   AND ep.end_at > :targetStart
             )
             """, nativeQuery = true)
-    boolean existsSessionScheduleConflict(
+    long countSessionScheduleConflicts(
             @Param("speakerId") Long speakerId,
             @Param("programId") Long programId,
             @Param("targetStart") LocalDateTime targetStart,

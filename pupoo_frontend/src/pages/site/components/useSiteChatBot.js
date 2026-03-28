@@ -8,10 +8,18 @@ const TOKEN_KEY = "pupoo_access_token";
 const QUICK_ACTIONS = [
   {
     id: "event_info",
-    label: "행사 정보 보기",
-    description: "진행 중인 행사와 프로그램 정보를 안내해 드려요.",
+    label: "진행 중 행사",
+    description: "지금 참여할 수 있는 행사와 핵심 프로그램을 안내해 드려요.",
     kind: "request",
     prompt: "진행 중인 행사 알려줘",
+    category: "info",
+  },
+  {
+    id: "program_recommend",
+    label: "지금 추천 코스",
+    description: "바로 참여하기 좋은 프로그램과 이동 순서를 추천해 드려요.",
+    kind: "request",
+    prompt: "지금 참여하기 좋은 프로그램 추천해줘",
     category: "info",
   },
   {
@@ -28,6 +36,14 @@ const QUICK_ACTIONS = [
     description: "로그인이나 회원가입 방법을 알려드려요.",
     kind: "request",
     prompt: "로그인 어떻게 해?",
+    category: "info",
+  },
+  {
+    id: "mypage_help",
+    label: "마이페이지 도움",
+    description: "내 QR, 신청 내역, 반려동물 정보 확인 방법을 안내해 드려요.",
+    kind: "request",
+    prompt: "마이페이지에서 뭘 할 수 있어?",
     category: "info",
   },
   {
@@ -48,10 +64,18 @@ const QUICK_ACTIONS = [
   },
   {
     id: "navigate_event",
-    label: "행사 페이지",
-    description: "행사 목록 페이지로 이동해요.",
+    label: "행사 둘러보기",
+    description: "현재 진행 중인 행사 목록으로 바로 이동해요.",
     kind: "navigate",
     route: "/event/current",
+    category: "navigate",
+  },
+  {
+    id: "navigate_programs",
+    label: "프로그램 전체",
+    description: "행사별 프로그램 페이지로 이동해요.",
+    kind: "navigate",
+    route: "/program/all",
     category: "navigate",
   },
   {
@@ -60,6 +84,46 @@ const QUICK_ACTIONS = [
     description: "실시간 현황 페이지로 이동해요.",
     kind: "navigate",
     route: "/realtime/dashboard",
+    category: "navigate",
+  },
+  {
+    id: "navigate_mypage",
+    label: "마이페이지",
+    description: "내 정보와 QR, 반려동물 정보를 확인하러 가요.",
+    kind: "navigate",
+    route: "/auth/mypage",
+    category: "navigate",
+  },
+  {
+    id: "navigate_applyhistory",
+    label: "신청 내역",
+    description: "행사와 프로그램 신청 내역을 확인하러 가요.",
+    kind: "navigate",
+    route: "/registration/applyhistory",
+    category: "navigate",
+  },
+  {
+    id: "navigate_qr",
+    label: "QR 체크인",
+    description: "내 QR 체크인 페이지로 바로 이동해요.",
+    kind: "navigate",
+    route: "/registration/qrcheckin",
+    category: "navigate",
+  },
+  {
+    id: "navigate_notice",
+    label: "공지사항",
+    description: "최신 행사 공지와 운영 안내를 확인해요.",
+    kind: "navigate",
+    route: "/community/notice",
+    category: "navigate",
+  },
+  {
+    id: "navigate_faq",
+    label: "FAQ",
+    description: "자주 묻는 질문 모음으로 이동해요.",
+    kind: "navigate",
+    route: "/info/faq",
     category: "navigate",
   },
 ];
@@ -214,6 +278,12 @@ export function useSiteChatBot() {
     [navigate, sendMessage],
   );
 
+  const resetConversation = useCallback(() => {
+    setMessages(initialMessages());
+    setInput("");
+    setIsTyping(false);
+  }, []);
+
   const clearMessages = useCallback(() => {
     setMessages([createBotMessage(idRef.current++, "대화를 새로 시작할게요! 뭐든 물어봐 주세요 🐾")]);
   }, []);
@@ -230,5 +300,6 @@ export function useSiteChatBot() {
     triggerQuickAction,
     sendMessage,
     clearMessages,
+    resetConversation,
   };
 }

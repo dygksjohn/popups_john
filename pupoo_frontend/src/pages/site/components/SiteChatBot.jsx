@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Minus, RotateCcw, Send, Sparkles, X } from "lucide-react";
+import { Home, Minus, RotateCcw, Send, Sparkles, X } from "lucide-react";
 import Lottie from "lottie-react";
 import dogLottie from "../../../../public/dog-lottie.json";
 import { useSiteChatBot } from "./useSiteChatBot";
@@ -289,12 +289,12 @@ export default function SiteChatBot() {
     quickActions,
     triggerQuickAction,
     sendMessage,
-    clearMessages,
+    resetConversation,
   } = useSiteChatBot();
 
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
-  const [hasChats, setHasChats] = useState(false);
+  const [isHomeView, setIsHomeView] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -313,21 +313,37 @@ export default function SiteChatBot() {
     if (isOpen) setTimeout(() => inputRef.current?.focus(), 120);
   }, [isOpen]);
 
-  useEffect(() => {
-    if (messages.some((m) => m.role === "user")) setHasChats(true);
-  }, [messages]);
-
-  const welcomeActions = useMemo(() => quickActions.slice(0, 5), [quickActions]);
+  const welcomeActions = useMemo(() => quickActions.slice(0, 8), [quickActions]);
   const shortcutActions = useMemo(
-    () => quickActions.filter((a) => a.category === "navigate").slice(0, 5),
+    () => quickActions.filter((a) => a.category === "navigate").slice(0, 6),
     [quickActions],
   );
 
   const handleKey = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
+      setIsHomeView(false);
       sendMessage();
     }
+  };
+
+  const handleSend = () => {
+    setIsHomeView(false);
+    sendMessage();
+  };
+
+  const handleQuickAction = (action) => {
+    setIsHomeView(false);
+    triggerQuickAction(action);
+  };
+
+  const handleGoHome = () => {
+    setIsHomeView(true);
+  };
+
+  const handleResetConversation = () => {
+    resetConversation();
+    setIsHomeView(true);
   };
 
   return (
@@ -365,11 +381,71 @@ export default function SiteChatBot() {
                   <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.92)" }}>행사 안내 도우미</span>
                 </div>
               </div>
-              <div style={{ display: "flex", gap: 6 }}>
-                <button type="button" onClick={clearMessages} style={{ width: 30, height: 30, borderRadius: 10, border: "none", background: "rgba(255,255,255,0.18)", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <button
+                  type="button"
+                  onClick={handleGoHome}
+                  style={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: 10,
+                    border: "none",
+                    background: isHomeView ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.18)",
+                    color: "#fff",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: 0,
+                    lineHeight: 0,
+                  }}
+                  title="홈"
+                  aria-label="홈"
+                >
+                  <Home size={14} />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResetConversation}
+                  style={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: 10,
+                    border: "none",
+                    background: "rgba(255,255,255,0.18)",
+                    color: "#fff",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: 0,
+                    lineHeight: 0,
+                  }}
+                  title="새로고침"
+                  aria-label="새로고침"
+                >
                   <RotateCcw size={14} />
                 </button>
-                <button type="button" onClick={close} style={{ width: 30, height: 30, borderRadius: 10, border: "none", background: "rgba(255,255,255,0.18)", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <button
+                  type="button"
+                  onClick={close}
+                  style={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: 10,
+                    border: "none",
+                    background: "rgba(255,255,255,0.18)",
+                    color: "#fff",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: 0,
+                    lineHeight: 0,
+                  }}
+                  title="최소화"
+                  aria-label="최소화"
+                >
                   <Minus size={15} />
                 </button>
               </div>
@@ -377,8 +453,8 @@ export default function SiteChatBot() {
           </div>
 
           {/* Body */}
-          {!hasChats ? (
-            <Welcome actions={welcomeActions} onSelect={triggerQuickAction} mobile={isMobile} />
+          {isHomeView ? (
+            <Welcome actions={welcomeActions} onSelect={handleQuickAction} mobile={isMobile} />
           ) : (
             <>
               <div className="scb-panel" style={{ flex: 1, overflowY: "auto", padding: isMobile ? "14px 12px 8px" : "16px 14px 8px", background: DARK }}>
@@ -393,12 +469,12 @@ export default function SiteChatBot() {
                 {isTyping ? <Typing mobile={isMobile} /> : null}
                 <div ref={bottomRef} />
               </div>
-              <ShortcutStrip actions={shortcutActions} onSelect={triggerQuickAction} mobile={isMobile} />
+              <ShortcutStrip actions={shortcutActions} onSelect={handleQuickAction} mobile={isMobile} />
             </>
           )}
 
           {/* Input */}
-          <InputBar inputRef={inputRef} input={input} setInput={setInput} onSend={() => sendMessage()} isTyping={isTyping} handleKey={handleKey} mobile={isMobile} />
+          <InputBar inputRef={inputRef} input={input} setInput={setInput} onSend={handleSend} isTyping={isTyping} handleKey={handleKey} mobile={isMobile} />
         </div>
       ) : null}
 

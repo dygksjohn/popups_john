@@ -87,14 +87,14 @@ public class SpeakerAdminService {
             return;
         }
 
-        boolean hasConflict = programSpeakerMappingRepository.existsSessionScheduleConflict(
+        long conflictCount = programSpeakerMappingRepository.countSessionScheduleConflicts(
                 speakerId,
                 targetProgram.getProgramId(),
                 targetProgram.getStartAt(),
                 targetProgram.getEndAt()
         );
 
-        if (hasConflict) {
+        if (conflictCount > 0) {
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST,
                     "SPEAKER_SCHEDULE_CONFLICT: overlapping session time"

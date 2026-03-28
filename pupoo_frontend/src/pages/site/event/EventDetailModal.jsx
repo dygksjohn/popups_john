@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
+import { boothApi } from "../../../app/http/boothApi";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getEventImage } from "../../admin/shared/eventImageStore";
 import { tokenStore } from "../../../app/http/tokenStore";
@@ -760,11 +761,12 @@ function buildDateKeys(startAt, endAt, scheduleList) {
   return [];
 }
 
-function normalizeScheduleItem(item, idx, fallbackDateKey) {
+function normalizeScheduleItem(item, idx, fallbackDateKey, boothNameMap = new Map()) {
   const startAt = item?.startAt ?? item?.startDateTime ?? null;
   const endAt = item?.endAt ?? item?.endDateTime ?? null;
   const rawProgramId = item?.programId ?? item?.id ?? item?.program_id;
   const programId = Number(rawProgramId);
+  const boothId = Number(item?.boothId);
   const timeText =
     item?.time ??
     (startAt || endAt ? formatTime(startAt, endAt) : "시간 미정");
@@ -776,7 +778,9 @@ function normalizeScheduleItem(item, idx, fallbackDateKey) {
     item?.place ??
     item?.zone ??
     item?.boothName ??
+    boothNameMap.get(boothId) ??
     (item?.boothId ? `부스 ${item.boothId}` : "장소 미정");
+  const category = String(item?.category ?? "").toUpperCase();
   const rawStatus = String(item?.status ?? "").toUpperCase();
   let status =
     rawStatus.includes("DONE") || rawStatus.includes("END")
@@ -814,11 +818,33 @@ function normalizeScheduleItem(item, idx, fallbackDateKey) {
     id: Number.isFinite(programId) ? programId : `${title}-${idx}`,
     programId: Number.isFinite(programId) ? programId : null,
     dateKey,
+    category,
     title,
     timeText,
     place,
     status,
     period,
+  };
+}
+
+const SPEAKER_CARD_ACCENTS = [
+  { bg: "#eff4ff", color: "#90C450" },
+  { bg: "#f5f3ff", color: "#7c3aed" },
+  { bg: "#ecfdf5", color: "#059669" },
+  { bg: "#fff7ed", color: "#d97706" },
+];
+
+function toSpeakerCard(program, speaker, index) {
+  const accent = SPEAKER_CARD_ACCENTS[index % SPEAKER_CARD_ACCENTS.length];
+  const speakerName = String(speaker?.speakerName || "연사").trim();
+  const speakerBio = String(speaker?.speakerBio || "").trim();
+  return {
+    name: speakerName,
+    role: speakerBio || "세션 진행 연사",
+    topic: program?.title || "",
+    avatar: speakerName.slice(0, 1) || "?",
+    bg: accent.bg,
+    color: accent.color,
   };
 }
 
@@ -968,6 +994,8 @@ export default function EventDetailModal({ event, onClose }) {
   const [error, setError] = useState("");
   const [detail, setDetail] = useState(null);
   const [programList, setProgramList] = useState([]);
+  const [boothNameMap, setBoothNameMap] = useState(new Map());
+  const [speakerCards, setSpeakerCards] = useState([]);
   const [regStatus, setRegStatus] = useState("");
   const [applyId, setApplyId] = useState(null);
   const [regLoading, setRegLoading] = useState(false);
@@ -1021,25 +1049,52 @@ export default function EventDetailModal({ event, onClose }) {
       setError("");
       setRegError("");
       setProgramList([]);
+      setBoothNameMap(new Map());
+      setSpeakerCards([]);
       try {
         const res = await eventApi.getEventDetail(modalEventId);
         const data = res.data.data;
         if (mounted) setDetail(data);
-        try {
-          const programRes = await programApi.getAllProgramsByEvent({
+        const [programResult, boothResult] = await Promise.allSettled([
+          programApi.getAllProgramsByEvent({
             eventId: modalEventId,
             sort: "startAt,asc",
-          });
+          }),
+          boothApi.getEventBooths({
+            eventId: modalEventId,
+            size: 300,
+            sort: "boothId,asc",
+          }),
+        ]);
+
+        if (programResult.status === "fulfilled") {
+          const programRes = programResult.value;
           if (mounted && Array.isArray(programRes)) {
             const filtered = programRes.filter(
               (item) => Number(item?.eventId) === modalEventId,
             );
             setProgramList(filtered.length > 0 ? filtered : programRes);
           }
-        } catch (programError) {
-          console.error(programError);
+        } else {
+          console.error(programResult.reason);
           if (mounted) setProgramList([]);
         }
+
+        if (boothResult.status === "fulfilled") {
+          const boothRows = Array.isArray(boothResult.value?.data?.data?.content)
+            ? boothResult.value.data.data.content
+            : [];
+          const nextBoothMap = new Map(
+            boothRows
+              .map((item) => [Number(item?.boothId), item?.placeName])
+              .filter(([boothId, placeName]) => Number.isFinite(boothId) && placeName),
+          );
+          if (mounted) setBoothNameMap(nextBoothMap);
+        } else {
+          console.error(boothResult.reason);
+          if (mounted) setBoothNameMap(new Map());
+        }
+
         if (hasToken) {
           try {
             await fetchMyRegistrations();
@@ -1278,7 +1333,9 @@ export default function EventDetailModal({ event, onClose }) {
   const fallbackDateKey = toDateKey(detail?.startAt);
   const normalizedPrograms = (
     programList.length > 0 ? programList : detail?.schedule || []
-  ).map((item, idx) => normalizeScheduleItem(item, idx, fallbackDateKey));
+  ).map((item, idx) =>
+    normalizeScheduleItem(item, idx, fallbackDateKey, boothNameMap),
+  );
 
   const dateKeys = buildDateKeys(detail?.startAt, detail?.endAt, normalizedPrograms);
   const dayList = dateKeys.map((key, idx) => {
@@ -1298,7 +1355,7 @@ export default function EventDetailModal({ event, onClose }) {
   const effectiveDateKey =
     (selectedDateKey && dayList.some((d) => d.key === selectedDateKey)
       ? selectedDateKey
-      : (isOngoingEvent && dayList.some((d) => d.key === todayKey)
+      : (isOngoingEvent && dayList.some((d) => d.key === todayKey && d.count > 0)
           ? todayKey
           : dayList.find((d) => d.count > 0)?.key || dayList[0]?.key)) || "";
 
@@ -1313,12 +1370,82 @@ export default function EventDetailModal({ event, onClose }) {
   const selectedPrograms = normalizedPrograms.filter(
     (item) => item.dateKey === effectiveDateKey,
   );
+  const speakerProgramKey = selectedPrograms
+    .filter((item) => Number.isFinite(item?.programId))
+    .map((item) => `${item.programId}:${item.category}`)
+    .join("|");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const candidatePrograms = selectedPrograms
+      .filter((item) => Number.isFinite(item?.programId))
+      .sort((left, right) => {
+        if (left.category === "SESSION" && right.category !== "SESSION") return -1;
+        if (left.category !== "SESSION" && right.category === "SESSION") return 1;
+        return 0;
+      })
+      .slice(0, 6);
+
+    if (candidatePrograms.length === 0) {
+      setSpeakerCards([]);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const fetchSpeakerCards = async () => {
+      const speakerResults = await Promise.all(
+        candidatePrograms.map(async (program) => {
+          try {
+            const response = await programApi.getProgramSpeakers(program.programId);
+            const speakers = Array.isArray(response?.data?.data)
+              ? response.data.data
+              : [];
+            return { program, speakers };
+          } catch (speakerError) {
+            console.error(speakerError);
+            return { program, speakers: [] };
+          }
+        }),
+      );
+
+      const nextCards = [];
+      const seen = new Set();
+
+      speakerResults.forEach(({ program, speakers }) => {
+        speakers.forEach((speaker) => {
+          const speakerKey =
+            speaker?.speakerId ?? `${speaker?.speakerName || "speaker"}-${program.programId}`;
+          if (seen.has(speakerKey)) return;
+          seen.add(speakerKey);
+          nextCards.push(toSpeakerCard(program, speaker, nextCards.length));
+        });
+      });
+
+      if (!cancelled) {
+        setSpeakerCards(nextCards.slice(0, 4));
+      }
+    };
+
+    fetchSpeakerCards();
+    return () => {
+      cancelled = true;
+    };
+  }, [speakerProgramKey, selectedPrograms]);
+
   const periods = ["오전", "오후", "저녁"];
   const programGroups = periods.map((period) => ({
     period,
     items: selectedPrograms.filter((item) => item.period === period),
   }));
   const totalProgramCount = normalizedPrograms.length;
+  const visibleSpeakerCards =
+    speakerCards.length > 0
+      ? speakerCards
+      : Array.isArray(detail?.speakers)
+        ? detail.speakers
+        : [];
 
   const handleViewAllPrograms = () => {
     const target = Number.isFinite(modalEventId)
@@ -1724,7 +1851,7 @@ export default function EventDetailModal({ event, onClose }) {
             </div>
 
             {/* Speakers */}
-            {detail?.speakers && detail.speakers.length > 0 && (
+            {visibleSpeakerCards.length > 0 && (
               <div className="evm-section">
                 <div className="evm-section-header">
                   <div
@@ -1736,11 +1863,14 @@ export default function EventDetailModal({ event, onClose }) {
                   <div className="evm-section-title">연사 정보</div>
                 </div>
                 <div className="evm-speakers">
-                  {detail.speakers.map((sp, i) => (
+                  {visibleSpeakerCards.map((sp, i) => (
                     <div className="evm-speaker-card" key={i}>
                       <div
                         className="evm-speaker-avatar"
-                        style={{ background: sp.color }}
+                        style={{
+                          background: sp.bg || sp.color,
+                          color: sp.bg ? sp.color : "#fff",
+                        }}
                       >
                         {sp.avatar}
                       </div>
