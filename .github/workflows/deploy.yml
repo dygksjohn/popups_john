@@ -118,7 +118,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Ensure frontend CSP report-only policy
+      - name: Ensure frontend CSP report-only function
         env:
           FRONTEND_CF_DISTRIBUTION_ID: ${{ vars.FRONTEND_CF_DISTRIBUTION_ID }}
           FRONTEND_CSP_REPORT_URI: ${{ env.FRONTEND_CSP_REPORT_URI }}
@@ -607,7 +607,7 @@ jobs:
             backend="${{ steps.ecr.outputs.registry }}/${{ vars.BACKEND_ECR_REPOSITORY }}:${{ github.sha }}"
 
       - name: Wait for backend rollout
-        run: kubectl -n "${EKS_NAMESPACE:-pupoo}" rollout status deployment/pupoo-backend --timeout=5m
+        run: kubectl -n "${EKS_NAMESPACE:-pupoo}" rollout status deployment/pupoo-backend --timeout=10m
 
   ai-deploy:
     runs-on: ubuntu-latest
