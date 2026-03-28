@@ -250,7 +250,7 @@ const normalizeCongestionPercentPrecise = (value) => {
   return Math.round(clamped * 10) / 10;
 };
 const normalizeAiPredictionRows = (predictionPayload) => {
-  // Normalize both model outputs onto the same time axis so the chart can always draw two lines.
+  // 두 모델 출력을 같은 시간축으로 정규화해 차트에서 항상 두 줄을 그릴 수 있게 한다.
   const timeline = Array.isArray(predictionPayload?.timeline)
     ? predictionPayload.timeline
     : [];
@@ -792,8 +792,8 @@ export default function HomeDashboard({ initialEventId = null }) {
       const selectedPredictionRows = normalizeAiPredictionRows(
         selectedEventPredictionPayload,
       );
-      // Keep the selected event on the AI comparison chart even after it ends so operators can
-      // compare LightGBM and LSTM on one consistent view instead of falling back to a single line.
+      // 선택한 행사는 종료 후에도 AI 비교 차트를 유지해 LightGBM과 LSTM을
+      // 단일선으로 되돌리지 않고 같은 화면에서 계속 비교할 수 있게 한다.
       const useSelectedDatePrediction =
         selectedEventSupportsDateSelection &&
         Boolean(selectedEventDate) &&

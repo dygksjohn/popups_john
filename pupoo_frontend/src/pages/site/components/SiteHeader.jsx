@@ -12,7 +12,7 @@ import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
 
 const FONT = "'JeonjuCraftGothic', Pretendard, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
 
-/* Top-level mega menu data for the site header. */
+/* 사이트 헤더의 최상위 메가 메뉴 데이터 */
 const megaMenuData = {
   events: {
     columns: [
@@ -117,7 +117,7 @@ const navItems = [
   { label: "실시간현황", href: "/realtime/dashboard" },
 ];
 
-/* Shared anchor renderer used inside each mega menu column. */
+/* 메가 메뉴 컬럼에서 공통으로 사용하는 링크 렌더러 */
 const MegaLink = ({ item, onNavigate }) => {
   const [hovered, setHovered] = useState(false);
   return (
@@ -147,7 +147,7 @@ const MegaLink = ({ item, onNavigate }) => {
   );
 };
 
-/* Promo card icon metadata keyed by menu section. */
+/* 메뉴 섹션별 프로모 카드 아이콘 메타데이터 */
 const PROMO_ICONS = {
   event: { Icon: CalendarHeart, bg: "#eff4ff", color: "#90C450" },
   community: { Icon: MessageCircleHeart, bg: "#fef3f2", color: "#e04545" },
@@ -605,7 +605,7 @@ function resolveNotificationTargetPath(targetType, targetId) {
 
 function getNotificationTargetPath(notification) {
   if (!notification) return null;
-  // Some system notices intentionally stay inside the inbox and should not link out.
+  // 일부 시스템 알림은 인박스 안에서만 확인해야 하므로 외부 이동을 막는다.
   if (notification.canNavigate === false) return null;
   return notification.targetPath || resolveNotificationTargetPath(notification.targetType, notification.targetId);
 }
@@ -716,9 +716,9 @@ export default function PupooHeader() {
     }
   };
 
-  // The header inbox only exposes "move" when the backend marks the item as navigable.
+  // 헤더 인박스는 백엔드가 이동 가능하다고 내려준 알림에만 이동 버튼을 노출한다.
 
-  /* Keep header styling in sync with the current scroll position. */
+  /* 현재 스크롤 위치에 맞춰 헤더 스타일을 동기화한다. */
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -733,7 +733,7 @@ export default function PupooHeader() {
     return () => window.removeEventListener("resize", syncViewport);
   }, []);
 
-  /* Mirror the unread count into a ref so polling callbacks read the latest value. */
+  /* 폴링 콜백이 최신 값을 읽도록 읽지 않은 알림 수를 ref에도 동기화한다. */
   useEffect(() => {
     unreadCountRef.current = unreadCount;
   }, [unreadCount]);
@@ -788,7 +788,7 @@ export default function PupooHeader() {
     return () => window.removeEventListener(NOTIFICATION_UNREAD_COUNT_EVENT, handleUnreadCountChange);
   }, []);
 
-  /* Close floating header panels when the click lands outside the header shell. */
+  /* 헤더 바깥을 클릭하면 열려 있는 플로팅 패널을 닫는다. */
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (headerRef.current && !headerRef.current.contains(e.target)) setActiveMenu(null);
@@ -797,7 +797,7 @@ export default function PupooHeader() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  /* Route changes should always reset transient header panels. */
+  /* 라우트가 바뀌면 일시적인 헤더 패널 상태를 항상 초기화한다. */
   useEffect(() => {
     setActiveMenu(null);
     setSearchOpen(false);
@@ -1688,7 +1688,7 @@ export default function PupooHeader() {
           </div>
         )}
 
-        {/* Search panel */}
+        {/* 검색 패널 */}
         {searchOpen && (
           <SearchPanel
             onClose={() => setSearchOpen(false)}

@@ -5,7 +5,7 @@ import { tokenStore } from "../../../app/http/tokenStore";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
-// First-screen shortcuts shown before the user starts typing.
+// 사용자가 입력하기 전 첫 화면에서 바로 누를 수 있는 빠른 액션 목록이다.
 const QUICK_ACTIONS = [
   {
     id: "event_info",
@@ -189,7 +189,7 @@ function resolveCurrentPage(pathname) {
 }
 
 async function requestChat({ history, userMessage, context }) {
-  // Keep request shaping in one place so UI handlers can reuse the same chat contract.
+  // 요청 페이로드 구성을 한곳에 모아 UI 핸들러가 같은 채팅 계약을 재사용하게 한다.
   const url = buildRequestUrl(API_BASE_URL, "/api/chatbot/chat");
   const token = tokenStore.getAccessToken();
 
@@ -290,7 +290,7 @@ export function useSiteChatBot() {
 
   const triggerQuickAction = useCallback(
     async (item) => {
-      // Navigation shortcuts stay local, while request shortcuts go through the regular chat flow.
+      // 이동형 액션은 로컬 라우팅으로 처리하고, 요청형 액션은 일반 채팅 흐름을 재사용한다.
       if (!item) return;
       if (item.kind === "navigate" && item.route) {
         navigate(item.route);
@@ -309,7 +309,7 @@ export function useSiteChatBot() {
 
   const handleMessageAction = useCallback(
     async (action) => {
-      // Server-returned actions reuse the same navigation and message hooks as first-screen shortcuts.
+      // 서버가 내려준 액션도 첫 화면 액션과 같은 이동·메시지 훅을 재사용한다.
       if (!action) return;
 
       if (action.type === "NAVIGATE" && action.payload?.route) {
@@ -332,13 +332,13 @@ export function useSiteChatBot() {
   );
 
   const resetConversation = useCallback(() => {
-    // Reset to the default welcome state without changing the open or closed widget state.
+    // 챗봇의 열림 상태는 유지한 채 기본 환영 메시지 상태로만 되돌린다.
     setMessages(initialMessages());
     setInput("");
     setIsTyping(false);
   }, []);
 
-  // "Home" uses a lighter reset message so the conversation can restart in place.
+  // 홈 버튼은 위젯을 닫지 않고 대화를 가볍게 다시 시작할 수 있게 한다.
   const clearMessages = useCallback(() => {
     setMessages([createBotMessage(idRef.current++, "대화를 새로 시작할게요! 뭐든 물어봐 주세요 🐾")]);
   }, []);
