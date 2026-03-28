@@ -16,14 +16,15 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
+import org.springframework.web.util.UriComponentsBuilder;
 
+import java.net.URI;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -57,7 +58,7 @@ public class GoogleOAuthService {
 
     @Transactional
     public GoogleOauthLoginResponse login(String code, String redirectUri, HttpServletResponse response) {
-        String resolvedRedirectUri = (redirectUri == null || redirectUri.isBlank()) ? defaultRedirectUri : redirectUri.trim();
+        String resolvedRedirectUri = resolveRedirectUri(redirectUri);
 
         // 1) 인가 코드 → 액세스 토큰 교환
         String accessToken = exchangeCodeForToken(code, resolvedRedirectUri);
@@ -189,5 +190,71 @@ public class GoogleOAuthService {
                 .userId(loginResponse.getUserId())
                 .roleName(loginResponse.getRoleName())
                 .build();
+    }
+
+    String resolveRedirectUri(String clientRedirectUri) {
+        if (clientRedirectUri == null || clientRedirectUri.isBlank()) {
+            return defaultRedirectUri;
+        }
+
+        String normalizedDefault = normalizeRedirectUri(defaultRedirectUri);
+        String normalizedClient = normalizeRedirectUri(clientRedirectUri);
+        if (normalizedClient == null || normalizedDefault == null) {
+            return defaultRedirectUri;
+        }
+
+        if (normalizedClient.equals(normalizedDefault)) {
+            return normalizedDefault;
+        }
+
+        if (isLocalRedirectUri(normalizedClient)) {
+            return normalizedClient;
+        }
+
+        log.warn("[GOOGLE] unsupported redirect uri requested. requested={}, default={}",
+                normalizedClient, normalizedDefault);
+        return normalizedDefault;
+    }
+
+    private String normalizeRedirectUri(String redirectUri) {
+        if (redirectUri == null || redirectUri.isBlank()) {
+            return null;
+        }
+
+        try {
+            URI uri = UriComponentsBuilder.fromUriString(redirectUri.trim()).build(true).toUri();
+            String scheme = uri.getScheme();
+            String host = uri.getHost();
+            String path = uri.getPath();
+
+            if (scheme == null || host == null || path == null || path.isBlank()) {
+                return null;
+            }
+
+            UriComponentsBuilder builder = UriComponentsBuilder.newInstance()
+                    .scheme(scheme.toLowerCase())
+                    .host(host.toLowerCase())
+                    .path(path);
+
+            if (uri.getPort() != -1) {
+                builder.port(uri.getPort());
+            }
+
+            return builder.build(true).toUriString();
+        } catch (IllegalArgumentException e) {
+            log.warn("[GOOGLE] failed to parse redirect uri: {}", redirectUri);
+            return null;
+        }
+    }
+
+    private boolean isLocalRedirectUri(String redirectUri) {
+        try {
+            URI uri = URI.create(redirectUri);
+            String host = uri.getHost();
+            return "http".equalsIgnoreCase(uri.getScheme())
+                    && Set.of("localhost", "127.0.0.1").contains(host);
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 }
