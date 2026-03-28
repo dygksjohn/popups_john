@@ -45,6 +45,7 @@ jobs:
       ai_image: ${{ steps.filter.outputs.ai_image }}
       ai_train: ${{ steps.filter.outputs.ai_train }}
       force_full_run: ${{ steps.mode.outputs.force_full_run }}
+      force_ai_pipeline: ${{ steps.mode.outputs.force_ai_pipeline }}
       force_ai_train: ${{ steps.mode.outputs.force_ai_train }}
       use_change_filters: ${{ steps.mode.outputs.use_change_filters }}
 
@@ -71,9 +72,11 @@ jobs:
           if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
             case "${RUN_AI_TRAIN_INPUT}" in
               false)
+                echo "force_ai_pipeline=false" >> "$GITHUB_OUTPUT"
                 echo "force_ai_train=false" >> "$GITHUB_OUTPUT"
                 ;;
               true|"")
+                echo "force_ai_pipeline=true" >> "$GITHUB_OUTPUT"
                 echo "force_ai_train=true" >> "$GITHUB_OUTPUT"
                 ;;
               *)
@@ -81,7 +84,11 @@ jobs:
                 exit 1
                 ;;
             esac
+          elif [[ "${EVENT_NAME}" == "schedule" ]]; then
+            echo "force_ai_pipeline=true" >> "$GITHUB_OUTPUT"
+            echo "force_ai_train=true" >> "$GITHUB_OUTPUT"
           else
+            echo "force_ai_pipeline=false" >> "$GITHUB_OUTPUT"
             echo "force_ai_train=false" >> "$GITHUB_OUTPUT"
           fi
 
@@ -463,7 +470,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     needs: changes
-    if: needs.changes.outputs.force_full_run == 'true' || needs.changes.outputs.ai_image == 'true'
+    if: needs.changes.outputs.force_ai_pipeline == 'true' || (needs.changes.outputs.use_change_filters == 'true' && needs.changes.outputs.ai_image == 'true')
     permissions:
       contents: read
       id-token: write
@@ -684,7 +691,7 @@ jobs:
     timeout-minutes: 15
     needs: [changes, cluster-sync, ai-image]
     if: >
-      (needs.changes.outputs.force_full_run == 'true' || needs.changes.outputs.ai_image == 'true') &&
+      (needs.changes.outputs.force_ai_pipeline == 'true' || (needs.changes.outputs.use_change_filters == 'true' && needs.changes.outputs.ai_image == 'true')) &&
       needs.cluster-sync.result == 'success' &&
       needs.ai-image.result == 'success'
     permissions:
