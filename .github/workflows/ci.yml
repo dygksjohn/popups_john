@@ -15,6 +15,7 @@ on:
       - "pupoo_backend/**"
       - "pupoo_frontend/**"
       - "scripts/check-import-case.mjs"
+      - "scripts/configure-aws-oidc.sh"
   push:
     branches:
       - develop
@@ -25,6 +26,7 @@ on:
       - "pupoo_backend/**"
       - "pupoo_frontend/**"
       - "scripts/check-import-case.mjs"
+      - "scripts/configure-aws-oidc.sh"
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -39,14 +41,15 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend }}
       backend: ${{ steps.filter.outputs.backend }}
       ai: ${{ steps.filter.outputs.ai }}
+      workflow_guard: ${{ steps.filter.outputs.workflow_guard }}
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6.0.2
 
       - name: Detect changed paths
         id: filter
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4.0.1
         with:
           filters: |
             frontend:
@@ -59,6 +62,34 @@ jobs:
             ai:
               - ".github/workflows/ci.yml"
               - "pupoo_ai/**"
+            workflow_guard:
+              - ".github/workflows/ci.yml"
+              - ".github/workflows/deploy.yml"
+              - "scripts/configure-aws-oidc.sh"
+
+  workflow-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: changes
+    if: needs.changes.outputs.workflow_guard == 'true'
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6.0.2
+
+      - name: Validate workflow helper scripts
+        run: |
+          bash -n ./scripts/configure-aws-oidc.sh
+          bash -n ./scripts/ensure-frontend-csp-report-only.sh
+
+      - name: Block deprecated AWS credentials action
+        run: |
+          if git grep -n "^[[:space:]]*uses:[[:space:]]*aws-actions/configure-aws-credentials@" -- .github/workflows; then
+            echo "::error::aws-actions/configure-aws-credentials is deprecated in this repository. Use ./scripts/configure-aws-oidc.sh instead."
+            exit 1
+          fi
 
   ai:
     runs-on: ubuntu-latest
@@ -70,10 +101,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6.0.2
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v6.2.0
         with:
           python-version: "3.12"
 
@@ -101,10 +132,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6.0.2
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v6.3.0
         with:
           node-version: "20"
           cache: npm
@@ -138,16 +169,16 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6.0.2
 
       - name: Set up Java
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v5.2.0
         with:
           distribution: temurin
           java-version: "21"
 
       - name: Set up Gradle cache
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v5.0.0
 
       - name: Build backend without frontend bundle
         working-directory: pupoo_backend

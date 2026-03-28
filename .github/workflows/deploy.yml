@@ -16,6 +16,7 @@ on:
       - "pupoo_backend/**"
       - "pupoo_frontend/**"
       - "scripts/check-import-case.mjs"
+      - "scripts/configure-aws-oidc.sh"
       - "scripts/ensure-frontend-csp-report-only.sh"
   workflow_dispatch:
 
@@ -37,29 +38,33 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6.0.2
 
       - name: Detect changed paths
         id: filter
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4.0.1
         with:
           filters: |
             frontend:
               - ".github/workflows/deploy.yml"
               - "pupoo_frontend/**"
               - "scripts/check-import-case.mjs"
+              - "scripts/configure-aws-oidc.sh"
               - "scripts/ensure-frontend-csp-report-only.sh"
             cluster_sync:
               - ".github/workflows/deploy.yml"
               - "k8s/**"
               - "pupoo_ai/**"
               - "pupoo_backend/**"
+              - "scripts/configure-aws-oidc.sh"
             backend_image:
               - ".github/workflows/deploy.yml"
               - "pupoo_backend/**"
+              - "scripts/configure-aws-oidc.sh"
             ai_image:
               - ".github/workflows/deploy.yml"
               - "pupoo_ai/**"
+              - "scripts/configure-aws-oidc.sh"
             ai_train:
               - ".github/workflows/deploy.yml"
               - "pupoo_ai/**"
@@ -82,13 +87,14 @@ jobs:
       VITE_NAVER_CLIENT_ID: ${{ vars.VITE_NAVER_CLIENT_ID }}
       VITE_KAKAO_MAP_KEY: ${{ vars.VITE_KAKAO_MAP_KEY || 'b338ac0a2a4b79c4fdffe57afe4591c4' }}
       FRONTEND_CSP_REPORT_URI: ${{ vars.FRONTEND_CSP_REPORT_URI || 'https://api.pupoo.site/api/security/csp/report' }}
+      AWS_REGION: ${{ vars.AWS_REGION }}
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6.0.2
 
       - name: Set up Node.js 20
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v6.3.0
         with:
           node-version: "20"
           cache: npm
@@ -113,10 +119,9 @@ jobs:
         run: npm run build
 
       - name: Configure AWS credentials for frontend deploy
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION }}
+        env:
+          AWS_DEPLOY_ROLE_ARN: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+        run: bash ./scripts/configure-aws-oidc.sh
 
       - name: Ensure frontend canonical host and CSP functions
         env:
@@ -153,16 +158,15 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6.0.2
 
       - name: Configure AWS credentials for EKS deploy
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION }}
+        env:
+          AWS_DEPLOY_ROLE_ARN: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+        run: bash ./scripts/configure-aws-oidc.sh
 
       - name: Set up kubectl
-        uses: azure/setup-kubectl@v4
+        uses: azure/setup-kubectl@v5.0.0
         with:
           version: latest
 
@@ -383,23 +387,22 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6.0.2
 
       - name: Configure AWS credentials for backend image
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION }}
+        env:
+          AWS_DEPLOY_ROLE_ARN: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+        run: bash ./scripts/configure-aws-oidc.sh
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4.0.0
 
       - name: Log in to Amazon ECR
         id: ecr
-        uses: aws-actions/amazon-ecr-login@v2
+        uses: aws-actions/amazon-ecr-login@v2.1.1
 
       - name: Build and push backend image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7.0.0
         with:
           context: ./pupoo_backend
           file: ./pupoo_backend/Dockerfile
@@ -423,16 +426,15 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6.0.2
 
       - name: Configure AWS credentials for AI image
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION }}
+        env:
+          AWS_DEPLOY_ROLE_ARN: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+        run: bash ./scripts/configure-aws-oidc.sh
 
       - name: Set up kubectl
-        uses: azure/setup-kubectl@v4
+        uses: azure/setup-kubectl@v5.0.0
         with:
           version: latest
 
@@ -471,7 +473,7 @@ jobs:
 
       - name: Set up Python 3.12 for AI training
         if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_train == 'true'
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v6.2.0
         with:
           python-version: "3.12"
 
@@ -551,14 +553,14 @@ jobs:
           PY
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4.0.0
 
       - name: Log in to Amazon ECR
         id: ecr
-        uses: aws-actions/amazon-ecr-login@v2
+        uses: aws-actions/amazon-ecr-login@v2.1.1
 
       - name: Build and push AI image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7.0.0
         with:
           context: ./pupoo_ai
           file: ./pupoo_ai/Dockerfile
@@ -601,14 +603,16 @@ jobs:
       EKS_NAMESPACE: ${{ vars.EKS_NAMESPACE }}
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6.0.2
+
       - name: Configure AWS credentials for backend deploy
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION }}
+        env:
+          AWS_DEPLOY_ROLE_ARN: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+        run: bash ./scripts/configure-aws-oidc.sh
 
       - name: Set up kubectl
-        uses: azure/setup-kubectl@v4
+        uses: azure/setup-kubectl@v5.0.0
         with:
           version: latest
 
@@ -617,7 +621,7 @@ jobs:
 
       - name: Log in to Amazon ECR
         id: ecr
-        uses: aws-actions/amazon-ecr-login@v2
+        uses: aws-actions/amazon-ecr-login@v2.1.1
 
       - name: Update backend image
         run: |
@@ -644,14 +648,16 @@ jobs:
       EKS_NAMESPACE: ${{ vars.EKS_NAMESPACE }}
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6.0.2
+
       - name: Configure AWS credentials for AI deploy
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION }}
+        env:
+          AWS_DEPLOY_ROLE_ARN: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+        run: bash ./scripts/configure-aws-oidc.sh
 
       - name: Set up kubectl
-        uses: azure/setup-kubectl@v4
+        uses: azure/setup-kubectl@v5.0.0
         with:
           version: latest
 
@@ -660,7 +666,7 @@ jobs:
 
       - name: Log in to Amazon ECR
         id: ecr
-        uses: aws-actions/amazon-ecr-login@v2
+        uses: aws-actions/amazon-ecr-login@v2.1.1
 
       - name: Update AI image
         run: |
