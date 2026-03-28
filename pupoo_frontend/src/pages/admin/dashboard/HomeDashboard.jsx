@@ -278,20 +278,12 @@ const normalizeAiPredictionRows = (predictionPayload) => {
       const lstmAtTime = lstmByTime.has(epoch)
         ? lstmByTime.get(epoch)
         : normalizedLstm;
-      const now = Date.now();
-      const isPastOrNow = time.getTime() <= now;
-      const measured =
-        isPastOrNow
-          ? normalizeCongestionPercentPrecise(point?.score)
-          : null;
       return {
         time,
         label: `${String(time.getHours()).padStart(2, "0")}:${String(time.getMinutes()).padStart(2, "0")}`,
-        measured,
-        lightgbm: isPastOrNow
-          ? null
-          : normalizeCongestionPercentPrecise(point?.score),
-        lstm: isPastOrNow ? null : lstmAtTime,
+        measured: null,
+        lightgbm: normalizeCongestionPercentPrecise(point?.score),
+        lstm: lstmAtTime,
       };
     })
     .filter(Boolean)
@@ -1430,20 +1422,6 @@ export default function HomeDashboard({ initialEventId = null }) {
                     />
                     <YAxis tick={{ fontSize: 11, fill: ds.ink4 }} axisLine={false} tickLine={false} width={34} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
                     <Tooltip content={<ChartTip suffix="%" light showName />} />
-                    {snapshot.isPredictionCongestionView ? (
-                      <Line
-                        type="monotoneX"
-                        dataKey="measured"
-                        name="실측"
-                        stroke={ds.amber}
-                        strokeWidth={2}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        dot={false}
-                        activeDot={{ r: 3.2, fill: ds.amber, stroke: ds.amber, strokeWidth: 0 }}
-                        connectNulls
-                      />
-                    ) : null}
                     <Line
                       type="monotoneX"
                       dataKey="lightgbm"
