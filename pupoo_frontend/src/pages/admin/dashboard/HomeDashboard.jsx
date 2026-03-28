@@ -683,8 +683,8 @@ export default function HomeDashboard({ initialEventId = null }) {
         : null;
       const selectedEventStatus = selectedEvent?.status;
       const selectedEventIsPlanned = selectedEventStatus === "PLANNED";
-      const selectedEventSupportsDateSelection =
-        selectedEventStatus === "PLANNED" || selectedEventStatus === "ONGOING";
+      // 운영자 관점에서는 종료 행사도 같은 AI 예측축으로 비교할 수 있어야 한다.
+      const selectedEventSupportsDateSelection = Boolean(selectedEvent);
       const selectedEventDate = selectedEventSupportsDateSelection
         ? clampDateToEventRange(
             selectedCongestionDate || toDateInputValue(new Date()),
@@ -1217,9 +1217,7 @@ export default function HomeDashboard({ initialEventId = null }) {
           handset={isHandset}
             action={(
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: isHandset ? "flex-start" : "flex-end", width: isHandset ? "100%" : "auto" }}>
-                {selectedScope &&
-                (snapshot.focusEvent?.status === "ONGOING" ||
-                  snapshot.focusEvent?.status === "PLANNED") ? (
+                {selectedScope ? (
                   <input
                     type="date"
                     value={effectiveCongestionDate}
