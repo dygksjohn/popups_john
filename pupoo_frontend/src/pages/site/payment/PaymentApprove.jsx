@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { recoverSessionAccessToken } from "../../../app/http/authSession";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { tokenStore } from "../../../app/http/tokenStore";
-import { authApi } from "../../../features/auth/api/authApi";
 
 export default function PaymentApprove() {
   const [searchParams] = useSearchParams();
@@ -31,13 +31,7 @@ export default function PaymentApprove() {
     if (!tokenStore.hasSessionHint()) return null;
 
     try {
-      const res = await authApi.refresh();
-      const refreshed = res?.accessToken ?? null;
-      if (refreshed) {
-        tokenStore.setAccess(refreshed);
-        return refreshed;
-      }
-      return null;
+      return await recoverSessionAccessToken("user", { force: true });
     } catch {
       return null;
     }

@@ -3,6 +3,7 @@ import {
   AUTH_CHANGE_EVENT,
   tokenStore,
 } from "../../../app/http/tokenStore";
+import { recoverSessionAccessToken } from "../../../app/http/authSession";
 import { authApi } from "./api/authApi";
 
 const AuthContext = createContext(null);
@@ -37,9 +38,10 @@ export function AuthProvider({ children }) {
           return;
         }
 
-        const res = await authApi.refresh();
-        if (res?.accessToken) {
-          tokenStore.setAccess(res.accessToken);
+        const accessToken = await recoverSessionAccessToken("user", {
+          force: true,
+        });
+        if (accessToken) {
           setIsAuthed(true);
         } else {
           tokenStore.clear();
