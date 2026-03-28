@@ -250,6 +250,7 @@ const normalizeCongestionPercentPrecise = (value) => {
   return Math.round(clamped * 10) / 10;
 };
 const normalizeAiPredictionRows = (predictionPayload) => {
+  // Normalize both model outputs onto the same time axis so the chart can always draw two lines.
   const timeline = Array.isArray(predictionPayload?.timeline)
     ? predictionPayload.timeline
     : [];
@@ -791,6 +792,8 @@ export default function HomeDashboard({ initialEventId = null }) {
       const selectedPredictionRows = normalizeAiPredictionRows(
         selectedEventPredictionPayload,
       );
+      // Keep the selected event on the AI comparison chart even after it ends so operators can
+      // compare LightGBM and LSTM on one consistent view instead of falling back to a single line.
       const useSelectedDatePrediction =
         selectedEventSupportsDateSelection &&
         Boolean(selectedEventDate) &&

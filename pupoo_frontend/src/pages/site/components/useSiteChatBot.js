@@ -5,6 +5,7 @@ import { tokenStore } from "../../../app/http/tokenStore";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
+// First-screen shortcuts shown before the user starts typing.
 const QUICK_ACTIONS = [
   {
     id: "event_info",
@@ -188,6 +189,7 @@ function resolveCurrentPage(pathname) {
 }
 
 async function requestChat({ history, userMessage, context }) {
+  // Keep request shaping in one place so UI handlers can reuse the same chat contract.
   const url = buildRequestUrl(API_BASE_URL, "/api/chatbot/chat");
   const token = tokenStore.getAccessToken();
 
@@ -288,6 +290,7 @@ export function useSiteChatBot() {
 
   const triggerQuickAction = useCallback(
     async (item) => {
+      // Navigation shortcuts stay local, while request shortcuts go through the regular chat flow.
       if (!item) return;
       if (item.kind === "navigate" && item.route) {
         navigate(item.route);
@@ -306,6 +309,7 @@ export function useSiteChatBot() {
 
   const handleMessageAction = useCallback(
     async (action) => {
+      // Server-returned actions reuse the same navigation and message hooks as first-screen shortcuts.
       if (!action) return;
 
       if (action.type === "NAVIGATE" && action.payload?.route) {
@@ -328,11 +332,13 @@ export function useSiteChatBot() {
   );
 
   const resetConversation = useCallback(() => {
+    // Reset to the default welcome state without changing the open or closed widget state.
     setMessages(initialMessages());
     setInput("");
     setIsTyping(false);
   }, []);
 
+  // "Home" uses a lighter reset message so the conversation can restart in place.
   const clearMessages = useCallback(() => {
     setMessages([createBotMessage(idRef.current++, "대화를 새로 시작할게요! 뭐든 물어봐 주세요 🐾")]);
   }, []);

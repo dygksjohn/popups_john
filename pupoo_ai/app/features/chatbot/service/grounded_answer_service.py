@@ -156,6 +156,7 @@ class GroundedAnswerService:
         return None if response is None else response.message
 
     async def answer_user_structured(self, request: ChatRequest) -> ChatResponse | None:
+        # Prefer grounded event/help answers first and only fall back to the general model later.
         message = request.message
         conversational_reply = self._build_user_conversational_response(message)
         if conversational_reply is not None:
@@ -249,6 +250,7 @@ class GroundedAnswerService:
         *,
         history: list[MessageItem] | None = None,
     ) -> dict[str, Any] | None:
+        # Event selection prefers explicit name matches, then follow-up history, then status intent.
         events = await self._backend_client.list_events(size=30)
         if not events:
             return None
@@ -333,6 +335,7 @@ class GroundedAnswerService:
         history: list[MessageItem],
         events: list[dict[str, Any]],
     ) -> dict[str, Any] | None:
+        # Follow-up prompts like "거기 장소는?" recover the last event mentioned in the thread.
         for item in reversed(history):
             matched = self._match_event_by_name(item.content, events)
             if matched is not None:
@@ -439,6 +442,7 @@ class GroundedAnswerService:
         event: dict[str, Any],
         programs: list[dict[str, Any]],
     ) -> ChatResponse:
+        # User event answers return both a natural-language reply and structured actions for the UI.
         name = str(event.get("eventName") or "\ud589\uc0ac")
         location = str(event.get("location") or "\uc7a5\uc18c \uc815\ubcf4 \uc5c6\uc74c")
         period = self._format_period(event)
@@ -560,6 +564,7 @@ class GroundedAnswerService:
         )
 
     def _build_user_help_chat_response(self, topic: str) -> ChatResponse:
+        # Help topics stay action-oriented so users can jump straight into the relevant page.
         meta = _USER_HELP_ROUTE_META[topic]
         summary = {
             "summaryType": "guide",

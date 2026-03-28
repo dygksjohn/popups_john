@@ -12,9 +12,7 @@ import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
 
 const FONT = "'JeonjuCraftGothic', Pretendard, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
 
-/* ?????????????????????????????????????????????
-   NAV DATA
-????????????????????????????????????????????? */
+/* Top-level mega menu data for the site header. */
 const megaMenuData = {
   events: {
     columns: [
@@ -119,9 +117,7 @@ const navItems = [
   { label: "실시간현황", href: "/realtime/dashboard" },
 ];
 
-/* ?????????????????????????????????????????????
-   MEGA MENU LINK ITEM
-????????????????????????????????????????????? */
+/* Shared anchor renderer used inside each mega menu column. */
 const MegaLink = ({ item, onNavigate }) => {
   const [hovered, setHovered] = useState(false);
   return (
@@ -151,9 +147,7 @@ const MegaLink = ({ item, onNavigate }) => {
   );
 };
 
-/* ?????????????????????????????????????????????
-   PROMO ICON MAP
-????????????????????????????????????????????? */
+/* Promo card icon metadata keyed by menu section. */
 const PROMO_ICONS = {
   event: { Icon: CalendarHeart, bg: "#eff4ff", color: "#90C450" },
   community: { Icon: MessageCircleHeart, bg: "#fef3f2", color: "#e04545" },
@@ -611,6 +605,7 @@ function resolveNotificationTargetPath(targetType, targetId) {
 
 function getNotificationTargetPath(notification) {
   if (!notification) return null;
+  // Some system notices intentionally stay inside the inbox and should not link out.
   if (notification.canNavigate === false) return null;
   return notification.targetPath || resolveNotificationTargetPath(notification.targetType, notification.targetId);
 }
@@ -721,7 +716,9 @@ export default function PupooHeader() {
     }
   };
 
-  /* ?? scroll listener ?? */
+  // The header inbox only exposes "move" when the backend marks the item as navigable.
+
+  /* Keep header styling in sync with the current scroll position. */
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -736,7 +733,7 @@ export default function PupooHeader() {
     return () => window.removeEventListener("resize", syncViewport);
   }, []);
 
-  /* ?? unread count sync ?? */
+  /* Mirror the unread count into a ref so polling callbacks read the latest value. */
   useEffect(() => {
     unreadCountRef.current = unreadCount;
   }, [unreadCount]);
@@ -791,7 +788,7 @@ export default function PupooHeader() {
     return () => window.removeEventListener(NOTIFICATION_UNREAD_COUNT_EVENT, handleUnreadCountChange);
   }, []);
 
-  /* ?? outside click ?? */
+  /* Close floating header panels when the click lands outside the header shell. */
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (headerRef.current && !headerRef.current.contains(e.target)) setActiveMenu(null);
@@ -800,7 +797,7 @@ export default function PupooHeader() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  /* ?? close on route change ?? */
+  /* Route changes should always reset transient header panels. */
   useEffect(() => {
     setActiveMenu(null);
     setSearchOpen(false);
@@ -1691,7 +1688,7 @@ export default function PupooHeader() {
           </div>
         )}
 
-        {/* ?? SEARCH PANEL ?? */}
+        {/* Search panel */}
         {searchOpen && (
           <SearchPanel
             onClose={() => setSearchOpen(false)}
