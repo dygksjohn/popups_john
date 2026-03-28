@@ -746,6 +746,14 @@ export function useChatBot() {
     ]);
   }, []);
 
+  const resetConversation = useCallback(() => {
+    setPendingConfirmation(null);
+    setMessages(initialMessages());
+    setInput("");
+    setIsTyping(false);
+    setIsConfirming(false);
+  }, []);
+
   return {
     isOpen,
     toggle,
@@ -759,6 +767,7 @@ export function useChatBot() {
     triggerQuickAction,
     sendMessage,
     clearMessages,
+    resetConversation,
     confirmExecute,
   };
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Minus, RotateCcw, Send, Sparkles, X } from "lucide-react";
+import { Home, Minus, RotateCcw, Send, Sparkles, X } from "lucide-react";
 import Lottie from "lottie-react";
 import dogLottie from "../../../../public/dog-lottie.json";
 import ds from "../shared/designTokens";
@@ -954,13 +954,13 @@ export default function AdminChatBot() {
     quickActions,
     triggerQuickAction,
     sendMessage,
-    clearMessages,
+    resetConversation,
     confirmExecute,
   } = useChatBot();
 
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
-  const [hasChats, setHasChats] = useState(false);
+  const [isHomeView, setIsHomeView] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -980,12 +980,6 @@ export default function AdminChatBot() {
       setTimeout(() => inputRef.current?.focus(), 120);
     }
   }, [isOpen]);
-
-  useEffect(() => {
-    if (messages.some((message) => message.role === "user")) {
-      setHasChats(true);
-    }
-  }, [messages]);
 
   const quickActionMap = useMemo(
     () => Object.fromEntries(quickActions.map((action) => [action.id, action])),
@@ -1007,8 +1001,28 @@ export default function AdminChatBot() {
   const handleKey = (event) => {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
+      setIsHomeView(false);
       sendMessage();
     }
+  };
+
+  const handleSend = () => {
+    setIsHomeView(false);
+    sendMessage();
+  };
+
+  const handleQuickAction = (action) => {
+    setIsHomeView(false);
+    triggerQuickAction(action);
+  };
+
+  const handleGoHome = () => {
+    setIsHomeView(true);
+  };
+
+  const handleResetConversation = () => {
+    resetConversation();
+    setIsHomeView(true);
   };
 
   const mobilePanelBottom = "calc(env(safe-area-inset-bottom, 0px) + 132px)";
@@ -1077,10 +1091,34 @@ export default function AdminChatBot() {
                   </span>
                 </div>
               </div>
-              <div style={{ display: "flex", gap: 6 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <button
                   type="button"
-                  onClick={clearMessages}
+                  onClick={handleGoHome}
+                  style={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: 10,
+                    border: "none",
+                    background: isHomeView
+                      ? "rgba(255,255,255,0.28)"
+                      : "rgba(255,255,255,0.18)",
+                    color: "#fff",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: 0,
+                    lineHeight: 0,
+                  }}
+                  title="홈"
+                  aria-label="홈"
+                >
+                  <Home size={14} />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResetConversation}
                   style={{
                     width: 30,
                     height: 30,
@@ -1089,7 +1127,14 @@ export default function AdminChatBot() {
                     background: "rgba(255,255,255,0.18)",
                     color: "#fff",
                     cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: 0,
+                    lineHeight: 0,
                   }}
+                  title="새로고침"
+                  aria-label="새로고침"
                 >
                   <RotateCcw size={14} />
                 </button>
@@ -1104,7 +1149,14 @@ export default function AdminChatBot() {
                     background: "rgba(255,255,255,0.18)",
                     color: "#fff",
                     cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: 0,
+                    lineHeight: 0,
                   }}
+                  title="최소화"
+                  aria-label="최소화"
                 >
                   <Minus size={15} />
                 </button>
@@ -1112,10 +1164,10 @@ export default function AdminChatBot() {
             </div>
           </div>
 
-          {!hasChats ? (
+          {isHomeView ? (
             <Welcome
               actions={welcomeActions}
-              onSelectAction={triggerQuickAction}
+              onSelectAction={handleQuickAction}
               mobile={isMobile}
             />
           ) : (
@@ -1138,7 +1190,7 @@ export default function AdminChatBot() {
                       messages[index + 1]?.role !== msg.role
                     }
                     onConfirm={confirmExecute}
-                    onSelectAction={triggerQuickAction}
+                    onSelectAction={handleQuickAction}
                     quickActionMap={quickActionMap}
                     isConfirming={isConfirming}
                     mobile={isMobile}
@@ -1149,7 +1201,7 @@ export default function AdminChatBot() {
               </div>
               <ShortcutStrip
                 actions={shortcutActions}
-                onSelectAction={triggerQuickAction}
+                onSelectAction={handleQuickAction}
                 mobile={isMobile}
               />
             </>
@@ -1159,7 +1211,7 @@ export default function AdminChatBot() {
             inputRef={inputRef}
             input={input}
             setInput={setInput}
-            onSend={() => sendMessage()}
+            onSend={handleSend}
             isTyping={isTyping}
             handleKey={handleKey}
             mobile={isMobile}
