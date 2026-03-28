@@ -1,6 +1,7 @@
 # Scope note:
 # - This workflow remains the shared CI pipeline for develop/main validation only.
 # - Production deployment lives in .github/workflows/deploy.yml.
+# - Frontend, backend, and AI validate independently so unrelated changes do not block each other.
 name: CI
 
 on:
@@ -30,9 +31,40 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.filter.outputs.backend }}
+      ai: ${{ steps.filter.outputs.ai }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Detect changed paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            frontend:
+              - ".github/workflows/ci.yml"
+              - "pupoo_frontend/**"
+              - "scripts/check-import-case.mjs"
+            backend:
+              - ".github/workflows/ci.yml"
+              - "pupoo_backend/**"
+            ai:
+              - ".github/workflows/ci.yml"
+              - "pupoo_ai/**"
+
   ai:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    needs: changes
+    if: needs.changes.outputs.ai == 'true'
     permissions:
       contents: read
 
@@ -62,6 +94,8 @@ jobs:
   frontend:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     permissions:
       contents: read
 
@@ -96,8 +130,9 @@ jobs:
 
   backend:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    needs: [ai, frontend]
+    timeout-minutes: 20
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     permissions:
       contents: read
 
@@ -111,29 +146,11 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: pupoo_frontend/package-lock.json
-
-      - name: Install frontend dependencies
-        working-directory: pupoo_frontend
-        run: npm ci
-
-      - name: Install lightningcss Linux binary
-        if: runner.os == 'Linux'
-        working-directory: pupoo_frontend
-        run: |
-          LIGHTNINGCSS_VERSION=$(node -p "require('./package-lock.json').packages['node_modules/lightningcss'].version")
-          npm install --no-save "lightningcss-linux-x64-gnu@${LIGHTNINGCSS_VERSION}"
-
       - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build backend
+      - name: Build backend without frontend bundle
         working-directory: pupoo_backend
         run: |
           chmod +x ./gradlew
-          ./gradlew build -x test
+          ./gradlew clean build -x test -PskipFrontendBuild=true

@@ -1,6 +1,7 @@
 # Scope note:
 # - This workflow deploys the production stack from the main branch.
 # - Frontend ships to S3/CloudFront, while backend and AI ship to EKS via ECR images.
+# - Shared cluster drift correction is centralized in cluster-sync, while service images deploy in parallel.
 # - Runtime secrets stay outside git and must already exist in the target cluster.
 name: Deploy Main
 
@@ -28,7 +29,8 @@ jobs:
       contents: read
     outputs:
       frontend: ${{ steps.filter.outputs.frontend }}
-      eks: ${{ steps.filter.outputs.eks }}
+      cluster_sync: ${{ steps.filter.outputs.cluster_sync }}
+      backend_image: ${{ steps.filter.outputs.backend_image }}
       ai_image: ${{ steps.filter.outputs.ai_image }}
       ai_train: ${{ steps.filter.outputs.ai_train }}
 
@@ -45,10 +47,13 @@ jobs:
               - ".github/workflows/deploy.yml"
               - "pupoo_frontend/**"
               - "scripts/check-import-case.mjs"
-            eks:
+            cluster_sync:
               - ".github/workflows/deploy.yml"
               - "k8s/**"
               - "pupoo_ai/**"
+              - "pupoo_backend/**"
+            backend_image:
+              - ".github/workflows/deploy.yml"
               - "pupoo_backend/**"
             ai_image:
               - ".github/workflows/deploy.yml"
@@ -116,13 +121,11 @@ jobs:
       - name: Invalidate CloudFront cache
         run: aws cloudfront create-invalidation --distribution-id "${{ vars.FRONTEND_CF_DISTRIBUTION_ID }}" --paths "/*"
 
-  eks-deploy:
+  cluster-sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-    needs: [changes, frontend-deploy]
-    if: >
-      (github.event_name == 'workflow_dispatch' || needs.changes.outputs.eks == 'true') &&
-      (needs.frontend-deploy.result == 'success' || needs.frontend-deploy.result == 'skipped')
+    timeout-minutes: 20
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.cluster_sync == 'true'
     permissions:
       contents: read
       id-token: write
@@ -143,21 +146,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Set up Java 21
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: "21"
-
-      - name: Set up Gradle cache
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Build backend
-        working-directory: pupoo_backend
-        run: |
-          chmod +x ./gradlew
-          ./gradlew clean build -x test
-
       - name: Configure AWS credentials for EKS deploy
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -171,163 +159,6 @@ jobs:
 
       - name: Update kubeconfig
         run: aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
-
-      - name: Load datasource env for AI training
-        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_image == 'true'
-        env:
-          PUPOO_AI_TRAIN_DB_URL: ${{ secrets.PUPOO_AI_TRAIN_DB_URL }}
-          PUPOO_AI_TRAIN_DB_USER: ${{ secrets.PUPOO_AI_TRAIN_DB_USER }}
-          PUPOO_AI_TRAIN_DB_PASSWORD: ${{ secrets.PUPOO_AI_TRAIN_DB_PASSWORD }}
-        run: |
-          set -eo pipefail
-          NS="${EKS_NAMESPACE:-pupoo}"
-          DS_URL="${PUPOO_AI_TRAIN_DB_URL}"
-          DS_USER="${PUPOO_AI_TRAIN_DB_USER}"
-          DS_PASSWORD="${PUPOO_AI_TRAIN_DB_PASSWORD}"
-
-          if [ -z "${DS_URL}" ] || [ -z "${DS_USER}" ] || [ -z "${DS_PASSWORD}" ]; then
-            DS_URL="$(kubectl -n "$NS" get secret pupoo-backend-secret -o jsonpath='{.data.SPRING_DATASOURCE_URL}' | base64 -d)"
-            DS_USER="$(kubectl -n "$NS" get secret pupoo-backend-secret -o jsonpath='{.data.SPRING_DATASOURCE_USERNAME}' | base64 -d)"
-            DS_PASSWORD="$(kubectl -n "$NS" get secret pupoo-backend-secret -o jsonpath='{.data.SPRING_DATASOURCE_PASSWORD}' | base64 -d)"
-          fi
-
-          if [ -z "${DS_URL}" ] || [ -z "${DS_USER}" ] || [ -z "${DS_PASSWORD}" ]; then
-            echo "PUPOO_AI_TRAIN_DB_* GitHub secret 또는 pupoo-backend-secret의 SPRING_DATASOURCE_* 값이 필요합니다"
-            exit 1
-          fi
-
-          {
-            echo "PUPOO_AI_TRAIN_DB_URL=${DS_URL}"
-            echo "PUPOO_AI_TRAIN_DB_USER=${DS_USER}"
-            echo "PUPOO_AI_TRAIN_DB_PASSWORD=${DS_PASSWORD}"
-          } >> "$GITHUB_ENV"
-
-      - name: Set up Python 3.12 for AI training
-        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_image == 'true'
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-
-      - name: Install AI training dependencies
-        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_image == 'true'
-        working-directory: pupoo_ai
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Train congestion models
-        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_image == 'true'
-        working-directory: pupoo_ai
-        run: |
-          python -m app.features.congestion.train.train_congestion_models \
-            --validation-ratio 0.2 \
-            --min-rows 200 \
-            --output-dir ./artifacts/congestion
-
-      - name: Verify trained model artifacts
-        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_image == 'true'
-        working-directory: pupoo_ai
-        run: |
-          ls -al ./artifacts/congestion
-          python - <<'PY'
-          import json
-          import sys
-          from pathlib import Path
-
-          output_dir = Path("./artifacts/congestion")
-          report_path = output_dir / "training_report_latest.json"
-
-          if not report_path.exists():
-              print("::error::training_report_latest.json is missing")
-              sys.exit(1)
-
-          report = json.loads(report_path.read_text(encoding="utf-8"))
-          targets = report.get("targets", {})
-
-          def verify_target(target_name: str, required: bool) -> bool:
-              target = targets.get(target_name, {})
-              status = target.get("status") or ("trained" if target.get("trained") else "skipped")
-              reason = target.get("reason", "")
-              artifacts = target.get("artifacts") or [
-                  f"{target_name.lower()}_congestion_model.joblib",
-                  f"{target_name.lower()}_lstm_baseline.joblib",
-              ]
-
-              print(f"[verify] {target_name}: status={status}")
-              if reason:
-                  print(f"[verify] {target_name}: reason={reason}")
-
-              if status != "trained":
-                  if required:
-                      print(f"::error::{target_name} target was not trained. reason={reason or 'unknown'}")
-                      return False
-                  print(f"::warning::{target_name} target skipped. reason={reason or 'unknown'}")
-                  return True
-
-              missing = [name for name in artifacts if not (output_dir / name).exists()]
-              if missing:
-                  level = "error" if required else "warning"
-                  print(f"::{level}::{target_name} trained but missing artifacts: {', '.join(missing)}")
-                  return not required
-
-              print(f"[verify] {target_name}: artifacts OK -> {', '.join(artifacts)}")
-              return True
-
-          event_ok = verify_target("EVENT", required=True)
-          program_ok = verify_target("PROGRAM", required=False)
-
-          if not event_ok:
-              sys.exit(1)
-
-          if not program_ok:
-              print("::warning::PROGRAM artifacts are incomplete, but deployment continues because EVENT artifacts are available.")
-          PY
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Amazon ECR
-        id: ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Build and push backend image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./pupoo_backend
-          file: ./pupoo_backend/Dockerfile
-          push: true
-          tags: |
-            ${{ steps.ecr.outputs.registry }}/${{ vars.BACKEND_ECR_REPOSITORY }}:${{ github.sha }}
-            ${{ steps.ecr.outputs.registry }}/${{ vars.BACKEND_ECR_REPOSITORY }}:latest
-
-      - name: Build and push AI image
-        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_image == 'true'
-        uses: docker/build-push-action@v6
-        with:
-          context: ./pupoo_ai
-          file: ./pupoo_ai/Dockerfile
-          push: true
-          tags: |
-            ${{ steps.ecr.outputs.registry }}/${{ vars.AI_ECR_REPOSITORY }}:${{ github.sha }}
-            ${{ steps.ecr.outputs.registry }}/${{ vars.AI_ECR_REPOSITORY }}:latest
-
-      - name: Smoke test AI image congestion runtime
-        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_image == 'true'
-        run: |
-          set -eo pipefail
-          AI_IMAGE="${{ steps.ecr.outputs.registry }}/${{ vars.AI_ECR_REPOSITORY }}:${{ github.sha }}"
-          docker pull "$AI_IMAGE"
-          docker run --rm "$AI_IMAGE" sh -lc 'python - <<'"'"'PY'"'"'
-          from pupoo_ai.app.features.congestion.inference.lightgbm_registry import LightGbmCongestionRegistry
-
-          registry = LightGbmCongestionRegistry(enabled=True)
-          status = registry.load_status()
-          print(status)
-
-          targets = status.get("targets") or {}
-          if not (targets.get("EVENT") or {}).get("loaded"):
-              raise SystemExit("EVENT congestion model failed to load inside the deployed image")
-          PY'
 
       - name: Sync backend runtime secrets
         env:
@@ -378,12 +209,12 @@ jobs:
           SMS_SENDER_ID="$(kubectl -n "${EKS_NAMESPACE:-pupoo}" get secret pupoo-backend-secret -o jsonpath='{.data.AWS_SMS_SENDER_ID}' | base64 -d 2>/dev/null || true)"
 
           if [ -z "${SERVICE_INTERNAL_TOKEN}" ]; then
-            echo "AI_SERVICE_INTERNAL_TOKEN GitHub secret 또는 기존 pupoo-backend-secret 값이 필요합니다"
+            echo "AI_SERVICE_INTERNAL_TOKEN GitHub secret or existing pupoo-backend-secret value is required"
             exit 1
           fi
 
           if [ -z "${MODERATION_INTERNAL_TOKEN}" ]; then
-            echo "AI_MODERATION_INTERNAL_TOKEN, APP_AI_MODERATION_INTERNAL_TOKEN 또는 기존 AI_SERVICE_INTERNAL_TOKEN 값이 필요합니다"
+            echo "AI_MODERATION_INTERNAL_TOKEN, APP_AI_MODERATION_INTERNAL_TOKEN, or existing AI_SERVICE_INTERNAL_TOKEN value is required"
             exit 1
           fi
 
@@ -477,7 +308,7 @@ jobs:
           AI_INTERNAL_TOKEN="${PUPOO_AI_INTERNAL_TOKEN:-${AI_SERVICE_INTERNAL_TOKEN:-${CURRENT_AI_SERVICE_INTERNAL_TOKEN}}}"
 
           if [ -z "${AI_INTERNAL_TOKEN}" ]; then
-            echo "PUPOO_AI_INTERNAL_TOKEN GitHub secret 또는 기존 AI_SERVICE_INTERNAL_TOKEN 값이 필요합니다"
+            echo "PUPOO_AI_INTERNAL_TOKEN GitHub secret or existing AI_SERVICE_INTERNAL_TOKEN value is required"
             exit 1
           fi
 
@@ -512,20 +343,302 @@ jobs:
       - name: Apply base manifests
         run: kubectl apply -k k8s/base
 
+  backend-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.backend_image == 'true'
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Configure AWS credentials for backend image
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./pupoo_backend
+          file: ./pupoo_backend/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ vars.BACKEND_ECR_REPOSITORY }}:${{ github.sha }}
+            ${{ steps.ecr.outputs.registry }}/${{ vars.BACKEND_ECR_REPOSITORY }}:latest
+
+  ai-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_image == 'true'
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME }}
+      EKS_NAMESPACE: ${{ vars.EKS_NAMESPACE }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Configure AWS credentials for AI image
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: latest
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
+
+      - name: Load datasource env for AI training
+        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_train == 'true'
+        env:
+          PUPOO_AI_TRAIN_DB_URL: ${{ secrets.PUPOO_AI_TRAIN_DB_URL }}
+          PUPOO_AI_TRAIN_DB_USER: ${{ secrets.PUPOO_AI_TRAIN_DB_USER }}
+          PUPOO_AI_TRAIN_DB_PASSWORD: ${{ secrets.PUPOO_AI_TRAIN_DB_PASSWORD }}
+        run: |
+          set -eo pipefail
+          NS="${EKS_NAMESPACE:-pupoo}"
+          DS_URL="${PUPOO_AI_TRAIN_DB_URL}"
+          DS_USER="${PUPOO_AI_TRAIN_DB_USER}"
+          DS_PASSWORD="${PUPOO_AI_TRAIN_DB_PASSWORD}"
+
+          if [ -z "${DS_URL}" ] || [ -z "${DS_USER}" ] || [ -z "${DS_PASSWORD}" ]; then
+            DS_URL="$(kubectl -n "$NS" get secret pupoo-backend-secret -o jsonpath='{.data.SPRING_DATASOURCE_URL}' | base64 -d)"
+            DS_USER="$(kubectl -n "$NS" get secret pupoo-backend-secret -o jsonpath='{.data.SPRING_DATASOURCE_USERNAME}' | base64 -d)"
+            DS_PASSWORD="$(kubectl -n "$NS" get secret pupoo-backend-secret -o jsonpath='{.data.SPRING_DATASOURCE_PASSWORD}' | base64 -d)"
+          fi
+
+          if [ -z "${DS_URL}" ] || [ -z "${DS_USER}" ] || [ -z "${DS_PASSWORD}" ]; then
+            echo "PUPOO_AI_TRAIN_DB_* GitHub secret or pupoo-backend-secret SPRING_DATASOURCE_* values are required"
+            exit 1
+          fi
+
+          {
+            echo "PUPOO_AI_TRAIN_DB_URL=${DS_URL}"
+            echo "PUPOO_AI_TRAIN_DB_USER=${DS_USER}"
+            echo "PUPOO_AI_TRAIN_DB_PASSWORD=${DS_PASSWORD}"
+          } >> "$GITHUB_ENV"
+
+      - name: Set up Python 3.12 for AI training
+        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_train == 'true'
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install AI training dependencies
+        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_train == 'true'
+        working-directory: pupoo_ai
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Train congestion models
+        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_train == 'true'
+        working-directory: pupoo_ai
+        run: |
+          python -m app.features.congestion.train.train_congestion_models \
+            --validation-ratio 0.2 \
+            --min-rows 200 \
+            --output-dir ./artifacts/congestion
+
+      - name: Verify trained model artifacts
+        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_train == 'true'
+        working-directory: pupoo_ai
+        run: |
+          ls -al ./artifacts/congestion
+          python - <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          output_dir = Path("./artifacts/congestion")
+          report_path = output_dir / "training_report_latest.json"
+
+          if not report_path.exists():
+              print("::error::training_report_latest.json is missing")
+              sys.exit(1)
+
+          report = json.loads(report_path.read_text(encoding="utf-8"))
+          targets = report.get("targets", {})
+
+          def verify_target(target_name: str, required: bool) -> bool:
+              target = targets.get(target_name, {})
+              status = target.get("status") or ("trained" if target.get("trained") else "skipped")
+              reason = target.get("reason", "")
+              artifacts = target.get("artifacts") or [
+                  f"{target_name.lower()}_congestion_model.joblib",
+                  f"{target_name.lower()}_lstm_baseline.joblib",
+              ]
+
+              print(f"[verify] {target_name}: status={status}")
+              if reason:
+                  print(f"[verify] {target_name}: reason={reason}")
+
+              if status != "trained":
+                  if required:
+                      print(f"::error::{target_name} target was not trained. reason={reason or 'unknown'}")
+                      return False
+                  print(f"::warning::{target_name} target skipped. reason={reason or 'unknown'}")
+                  return True
+
+              missing = [name for name in artifacts if not (output_dir / name).exists()]
+              if missing:
+                  level = "error" if required else "warning"
+                  print(f"::{level}::{target_name} trained but missing artifacts: {', '.join(missing)}")
+                  return not required
+
+              print(f"[verify] {target_name}: artifacts OK -> {', '.join(artifacts)}")
+              return True
+
+          event_ok = verify_target("EVENT", required=True)
+          program_ok = verify_target("PROGRAM", required=False)
+
+          if not event_ok:
+              sys.exit(1)
+
+          if not program_ok:
+              print("::warning::PROGRAM artifacts are incomplete, but deployment continues because EVENT artifacts are available.")
+          PY
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push AI image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./pupoo_ai
+          file: ./pupoo_ai/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ vars.AI_ECR_REPOSITORY }}:${{ github.sha }}
+            ${{ steps.ecr.outputs.registry }}/${{ vars.AI_ECR_REPOSITORY }}:latest
+
+      - name: Smoke test AI image congestion runtime
+        run: |
+          set -eo pipefail
+          AI_IMAGE="${{ steps.ecr.outputs.registry }}/${{ vars.AI_ECR_REPOSITORY }}:${{ github.sha }}"
+          docker pull "$AI_IMAGE"
+          docker run --rm "$AI_IMAGE" sh -lc 'python - <<'"'"'PY'"'"'
+          from pupoo_ai.app.features.congestion.inference.lightgbm_registry import LightGbmCongestionRegistry
+
+          registry = LightGbmCongestionRegistry(enabled=True)
+          status = registry.load_status()
+          print(status)
+
+          targets = status.get("targets") or {}
+          if not (targets.get("EVENT") or {}).get("loaded"):
+              raise SystemExit("EVENT congestion model failed to load inside the deployed image")
+          PY'
+
+  backend-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [changes, cluster-sync, backend-image]
+    if: >
+      (github.event_name == 'workflow_dispatch' || needs.changes.outputs.backend_image == 'true') &&
+      needs.cluster-sync.result == 'success' &&
+      needs.backend-image.result == 'success'
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME }}
+      EKS_NAMESPACE: ${{ vars.EKS_NAMESPACE }}
+
+    steps:
+      - name: Configure AWS credentials for backend deploy
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: latest
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
       - name: Update backend image
         run: |
           kubectl -n "${EKS_NAMESPACE:-pupoo}" set image deployment/pupoo-backend \
             backend="${{ steps.ecr.outputs.registry }}/${{ vars.BACKEND_ECR_REPOSITORY }}:${{ github.sha }}"
 
+      - name: Wait for backend rollout
+        run: kubectl -n "${EKS_NAMESPACE:-pupoo}" rollout status deployment/pupoo-backend --timeout=5m
+
+  ai-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [changes, cluster-sync, ai-image]
+    if: >
+      (github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_image == 'true') &&
+      needs.cluster-sync.result == 'success' &&
+      needs.ai-image.result == 'success'
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME }}
+      EKS_NAMESPACE: ${{ vars.EKS_NAMESPACE }}
+
+    steps:
+      - name: Configure AWS credentials for AI deploy
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: latest
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
       - name: Update AI image
-        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_image == 'true'
         run: |
           kubectl -n "${EKS_NAMESPACE:-pupoo}" set image deployment/pupoo-ai \
             ai="${{ steps.ecr.outputs.registry }}/${{ vars.AI_ECR_REPOSITORY }}:${{ github.sha }}"
 
-      - name: Wait for backend rollout
-        run: kubectl -n "${EKS_NAMESPACE:-pupoo}" rollout status deployment/pupoo-backend --timeout=5m
-
       - name: Wait for AI rollout
-        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_image == 'true'
         run: kubectl -n "${EKS_NAMESPACE:-pupoo}" rollout status deployment/pupoo-ai --timeout=5m
