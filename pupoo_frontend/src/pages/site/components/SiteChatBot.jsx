@@ -25,13 +25,13 @@ const chatStyles = `
   30% { transform: translateY(-5px); opacity: 1; }
 }
 .scb-msg { animation: scb-msgPop .24s ease-out; }
-.scb-panel::-webkit-scrollbar { width: 4px; }
-.scb-panel::-webkit-scrollbar-track { background: transparent; }
-.scb-panel::-webkit-scrollbar-thumb { background: transparent; border-radius: 999px; transition: background .3s; }
-.scb-panel:hover::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.10); }
-.scb-panel:hover::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.20); }
-.scb-panel { scrollbar-width: thin; scrollbar-color: transparent transparent; }
-.scb-panel:hover { scrollbar-color: rgba(255,255,255,0.10) transparent; }
+.scb-root *::-webkit-scrollbar { width: 4px; height: 4px; }
+.scb-root *::-webkit-scrollbar-track { background: transparent; }
+.scb-root *::-webkit-scrollbar-thumb { background: transparent; border-radius: 999px; transition: background .3s; }
+.scb-root *:hover::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.10); }
+.scb-root *:hover::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.20); }
+.scb-root * { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+.scb-root *:hover { scrollbar-color: rgba(255,255,255,0.10) transparent; }
 `;
 
 function fmt(date) {
@@ -499,6 +499,7 @@ export default function SiteChatBot() {
 
       {isOpen ? (
         <div
+          className="scb-root"
           style={{
             position: "fixed",
             bottom: isMobile ? 80 : 96,
