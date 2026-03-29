@@ -22,6 +22,7 @@ import com.popups.pupoo.auth.support.RefreshCookieRequestSupport;
 import com.popups.pupoo.auth.support.VerificationHashSupport;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
+import com.popups.pupoo.common.observability.application.OperationsMetricsService;
 import com.popups.pupoo.user.application.UserService;
 import com.popups.pupoo.user.domain.model.User;
 import com.popups.pupoo.user.dto.UserCreateRequest;
@@ -60,6 +61,7 @@ public class SignupSessionService {
     private final EmailVerificationSenderPort emailVerificationSenderPort;
     private final SmsOtpSenderPort smsOtpSenderPort;
     private final VerificationHashSupport verificationHashSupport;
+    private final OperationsMetricsService operationsMetricsService;
     private final int otpTtlMinutes;
     private final int otpCooldownSeconds;
     private final int otpDailyLimit;
@@ -82,6 +84,7 @@ public class SignupSessionService {
             EmailVerificationSenderPort emailVerificationSenderPort,
             SmsOtpSenderPort smsOtpSenderPort,
             VerificationHashSupport verificationHashSupport,
+            OperationsMetricsService operationsMetricsService,
             @Value("${signup.otp.ttl-minutes:5}") int otpTtlMinutes,
             @Value("${signup.otp.cooldown-seconds:60}") int otpCooldownSeconds,
             @Value("${signup.otp.daily-limit:5}") int otpDailyLimit,
@@ -103,6 +106,7 @@ public class SignupSessionService {
         this.emailVerificationSenderPort = emailVerificationSenderPort;
         this.smsOtpSenderPort = smsOtpSenderPort;
         this.verificationHashSupport = verificationHashSupport;
+        this.operationsMetricsService = operationsMetricsService;
         this.otpTtlMinutes = otpTtlMinutes;
         this.otpCooldownSeconds = otpCooldownSeconds;
         this.otpDailyLimit = otpDailyLimit;
@@ -122,7 +126,8 @@ public class SignupSessionService {
      */
     @Transactional
     public SignupStartResponse start(SignupStartRequest request) {
-        validateSalt();
+        try {
+            validateSalt();
 
         if (request == null || request.getSignupType() == null) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED);
@@ -192,6 +197,8 @@ public class SignupSessionService {
         // SMS 발송 구현은 Port로 분리되어 dev와 AWS SNS 중 설정값에 따라 선택된다.
         smsOtpSenderPort.sendOtp(phone, buildOtpMessage(otp, otpTtlMinutes));
 
+        operationsMetricsService.recordSignupStartSuccess();
+
         int remaining = Math.max(0, otpDailyLimit - (int) (sentToday + 1));
         return new SignupStartResponse(
                 saved.getSignupKey(),
@@ -200,6 +207,13 @@ public class SignupSessionService {
                 saved.getExpiresAt(),
                 shouldExposeSmsCode() ? otp : null
         );
+        } catch (BusinessException exception) {
+            operationsMetricsService.recordSignupStartFailure(resolveFailureReason(exception));
+            throw exception;
+        } catch (RuntimeException exception) {
+            operationsMetricsService.recordSignupStartFailure("internal_error");
+            throw exception;
+        }
     }
 
     /**
@@ -333,7 +347,8 @@ public class SignupSessionService {
      */
     @Transactional
     public LoginResponse complete(SignupCompleteRequest request, HttpServletResponse response) {
-        validateSalt();
+        try {
+            validateSalt();
 
         SignupSession session = getActiveSession(request == null ? null : request.getSignupKey());
 
@@ -378,7 +393,16 @@ public class SignupSessionService {
         setRefreshCookie(response, refresh);
         signupSessionRepository.delete(session);
 
+        operationsMetricsService.recordSignupCompleteSuccess();
+        operationsMetricsService.recordLoginSuccess("signup");
         return new LoginResponse(access, userId, roleName);
+        } catch (BusinessException exception) {
+            operationsMetricsService.recordSignupCompleteFailure(resolveFailureReason(exception));
+            throw exception;
+        } catch (RuntimeException exception) {
+            operationsMetricsService.recordSignupCompleteFailure("internal_error");
+            throw exception;
+        }
     }
 
     /**
@@ -433,6 +457,28 @@ public class SignupSessionService {
     // 기능: SMS가 dev provider면 OTP를 테스트 응답에 노출한다.
     private boolean shouldExposeSmsCode() {
         return exposeDevCode || (smsProvider != null && "dev".equalsIgnoreCase(smsProvider.trim()));
+    }
+
+    private String resolveFailureReason(BusinessException exception) {
+        if (exception == null || exception.getErrorCode() == null) {
+            return "business_error";
+        }
+
+        return switch (exception.getErrorCode()) {
+            case VALIDATION_FAILED -> "validation_failed";
+            case SIGNUP_SESSION_NOT_FOUND -> "session_not_found";
+            case SIGNUP_SESSION_EXPIRED -> "session_expired";
+            case SIGNUP_OTP_COOLDOWN -> "otp_cooldown";
+            case SIGNUP_OTP_DAILY_LIMIT -> "otp_daily_limit";
+            case SIGNUP_NOT_OTP_VERIFIED -> "otp_not_verified";
+            case SIGNUP_EMAIL_NOT_VERIFIED -> "email_not_verified";
+            case DUPLICATE_EMAIL -> "duplicate_email";
+            case DUPLICATE_NICKNAME -> "duplicate_nickname";
+            case DUPLICATE_PHONE -> "duplicate_phone";
+            case SMS_SEND_FAILED -> "sms_send_failed";
+            case SMS_DISABLED -> "sms_disabled";
+            default -> "business_error";
+        };
     }
 
     /**

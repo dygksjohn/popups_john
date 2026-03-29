@@ -13,6 +13,10 @@ class OperationsMetricsServiceTest {
         SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
         OperationsMetricsService service = new OperationsMetricsService(meterRegistry);
 
+        service.recordSignupStartSuccess();
+        service.recordSignupStartFailure("duplicate_phone");
+        service.recordSignupCompleteSuccess();
+        service.recordSignupCompleteFailure("duplicate_phone");
         service.recordLoginSuccess("password");
         service.recordLoginFailure("password", "invalid_credentials");
         service.recordLoginSuccess("social");
@@ -32,6 +36,10 @@ class OperationsMetricsServiceTest {
 
         assertThat(summary.scope()).isEqualTo("pod");
         assertThat(summary.instanceId()).isEqualTo("backend-0");
+        assertThat(summary.auth().signupStart().successCount()).isEqualTo(1);
+        assertThat(summary.auth().signupStart().failureCount()).isEqualTo(1);
+        assertThat(summary.auth().signupComplete().successCount()).isEqualTo(1);
+        assertThat(summary.auth().signupComplete().failureCount()).isEqualTo(1);
         assertThat(summary.auth().passwordLogin().successCount()).isEqualTo(1);
         assertThat(summary.auth().passwordLogin().failureCount()).isEqualTo(1);
         assertThat(summary.auth().socialLogin().successCount()).isEqualTo(1);

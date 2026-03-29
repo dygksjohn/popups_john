@@ -15,6 +15,7 @@ on:
       - "pupoo_ai/**"
       - "pupoo_backend/**"
       - "pupoo_frontend/**"
+      - "scripts/auth-journey-smoke.mjs"
       - "scripts/check-import-case.mjs"
       - "scripts/configure-aws-oidc.sh"
       - "scripts/ensure-frontend-csp.sh"
@@ -111,10 +112,12 @@ jobs:
               - "k8s/**"
               - "pupoo_ai/**"
               - "pupoo_backend/**"
+              - "scripts/auth-journey-smoke.mjs"
               - "scripts/configure-aws-oidc.sh"
             backend_image:
               - ".github/workflows/deploy.yml"
               - "pupoo_backend/**"
+              - "scripts/auth-journey-smoke.mjs"
               - "scripts/configure-aws-oidc.sh"
             ai_image:
               - ".github/workflows/deploy.yml"
@@ -645,7 +648,7 @@ jobs:
 
   backend-deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     needs: [changes, cluster-sync, backend-image]
     if: >
       (needs.changes.outputs.force_full_run == 'true' || needs.changes.outputs.backend_image == 'true') &&
@@ -662,6 +665,20 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6.0.2
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v6.3.0
+        with:
+          node-version: "20"
+
+      - name: Set up Java
+        uses: actions/setup-java@v5.2.0
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v5.0.0
 
       - name: Configure AWS credentials for backend deploy
         env:
@@ -680,13 +697,57 @@ jobs:
         id: ecr
         uses: aws-actions/amazon-ecr-login@v2.1.1
 
+      - name: Capture current backend image
+        id: backend_state
+        run: |
+          echo "previous_image=$(kubectl -n "${EKS_NAMESPACE:-pupoo}" get deployment/pupoo-backend -o jsonpath='{.spec.template.spec.containers[0].image}')" >> "$GITHUB_OUTPUT"
+
       - name: Update backend image
         run: |
           kubectl -n "${EKS_NAMESPACE:-pupoo}" set image deployment/pupoo-backend \
             backend="${{ steps.ecr.outputs.registry }}/${{ vars.BACKEND_ECR_REPOSITORY }}:${{ github.sha }}"
 
       - name: Wait for backend rollout
+        id: backend_rollout
+        continue-on-error: true
         run: kubectl -n "${EKS_NAMESPACE:-pupoo}" rollout status deployment/pupoo-backend --timeout=10m
+
+      - name: Ensure Gradle wrapper is executable
+        if: steps.backend_rollout.outcome == 'success'
+        run: chmod +x ./pupoo_backend/gradlew
+
+      - name: Run auth journey smoke
+        id: auth_smoke
+        if: steps.backend_rollout.outcome == 'success'
+        continue-on-error: true
+        env:
+          API_BASE_URL: ${{ vars.VITE_API_BASE_URL || 'https://api.pupoo.site' }}
+          SMOKE_REPORT_PATH: auth-journey-smoke.md
+        run: |
+          set -eo pipefail
+          node ./scripts/auth-journey-smoke.mjs 2>&1 | tee auth-journey-smoke.log
+
+      - name: Upload auth journey smoke artifact
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: auth-journey-smoke-${{ github.run_id }}
+          path: |
+            auth-journey-smoke.log
+            auth-journey-smoke.md
+
+      - name: Roll back backend deployment on rollout or smoke failure
+        if: steps.backend_rollout.outcome == 'failure' || steps.auth_smoke.outcome == 'failure'
+        run: |
+          kubectl -n "${EKS_NAMESPACE:-pupoo}" set image deployment/pupoo-backend \
+            backend="${{ steps.backend_state.outputs.previous_image }}"
+          kubectl -n "${EKS_NAMESPACE:-pupoo}" rollout status deployment/pupoo-backend --timeout=10m
+
+      - name: Fail backend deploy when rollout or smoke failed
+        if: steps.backend_rollout.outcome == 'failure' || steps.auth_smoke.outcome == 'failure'
+        run: |
+          echo "::error::Backend deploy failed because rollout or auth journey smoke did not pass."
+          exit 1
 
   ai-deploy:
     runs-on: ubuntu-latest

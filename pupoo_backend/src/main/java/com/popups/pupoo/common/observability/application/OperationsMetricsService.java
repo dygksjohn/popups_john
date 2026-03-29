@@ -13,6 +13,8 @@ import java.util.Locale;
 public class OperationsMetricsService {
 
     private static final String AUTH_LOGIN_METRIC = "pupoo.auth.login.requests";
+    private static final String AUTH_SIGNUP_START_METRIC = "pupoo.auth.signup.start.requests";
+    private static final String AUTH_SIGNUP_COMPLETE_METRIC = "pupoo.auth.signup.complete.requests";
     private static final String AUTH_REFRESH_METRIC = "pupoo.auth.refresh.requests";
     private static final String PAYMENT_STAGE_METRIC = "pupoo.payment.stage.requests";
     private static final String AI_PREDICTION_METRIC = "pupoo.ai.prediction.requests";
@@ -44,6 +46,34 @@ public class OperationsMetricsService {
                         "outcome", "failure",
                         "reason", normalizeTagValue(reason, "unknown")
                 )
+        );
+    }
+
+    public void recordSignupStartSuccess() {
+        increment(
+                AUTH_SIGNUP_START_METRIC,
+                Tags.of("outcome", "success", "reason", "none")
+        );
+    }
+
+    public void recordSignupStartFailure(String reason) {
+        increment(
+                AUTH_SIGNUP_START_METRIC,
+                Tags.of("outcome", "failure", "reason", normalizeTagValue(reason, "unknown"))
+        );
+    }
+
+    public void recordSignupCompleteSuccess() {
+        increment(
+                AUTH_SIGNUP_COMPLETE_METRIC,
+                Tags.of("outcome", "success", "reason", "none")
+        );
+    }
+
+    public void recordSignupCompleteFailure(String reason) {
+        increment(
+                AUTH_SIGNUP_COMPLETE_METRIC,
+                Tags.of("outcome", "failure", "reason", normalizeTagValue(reason, "unknown"))
         );
     }
 
@@ -115,6 +145,8 @@ public class OperationsMetricsService {
                 normalizeTagValue(instanceId, "local"),
                 LocalDateTime.now(),
                 new AdminOperationsMetricsResponse.AuthMetrics(
+                        buildOperationSummary(AUTH_SIGNUP_START_METRIC, Tags.empty()),
+                        buildOperationSummary(AUTH_SIGNUP_COMPLETE_METRIC, Tags.empty()),
                         buildOperationSummary(AUTH_LOGIN_METRIC, Tags.of("loginKind", "password")),
                         buildOperationSummary(AUTH_LOGIN_METRIC, Tags.of("loginKind", "social")),
                         buildOperationSummary(AUTH_LOGIN_METRIC, Tags.of("loginKind", "signup")),

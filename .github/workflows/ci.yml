@@ -23,12 +23,14 @@ on:
       - main
     paths:
       - ".github/workflows/ci.yml"
+      - ".github/workflows/operations-synthetic.yml"
       - ".github/dependabot.yml"
       - "docs/qa/**"
       - "pupoo_ai/**"
       - "pupoo_backend/**"
       - "pupoo_frontend/**"
       - "scripts/check-import-case.mjs"
+      - "scripts/auth-journey-smoke.mjs"
       - "scripts/configure-aws-oidc.sh"
       - "scripts/ensure-frontend-csp.sh"
       - "scripts/provider-preflight.mjs"
@@ -38,12 +40,14 @@ on:
       - main
     paths:
       - ".github/workflows/ci.yml"
+      - ".github/workflows/operations-synthetic.yml"
       - ".github/dependabot.yml"
       - "docs/qa/**"
       - "pupoo_ai/**"
       - "pupoo_backend/**"
       - "pupoo_frontend/**"
       - "scripts/check-import-case.mjs"
+      - "scripts/auth-journey-smoke.mjs"
       - "scripts/configure-aws-oidc.sh"
       - "scripts/ensure-frontend-csp.sh"
       - "scripts/provider-preflight.mjs"
@@ -127,8 +131,10 @@ jobs:
               - "pupoo_ai/**"
             workflow_guard:
               - ".github/workflows/ci.yml"
+              - ".github/workflows/operations-synthetic.yml"
               - ".github/workflows/deploy.yml"
               - ".github/dependabot.yml"
+              - "scripts/auth-journey-smoke.mjs"
               - "scripts/configure-aws-oidc.sh"
               - "scripts/ensure-frontend-csp.sh"
               - "scripts/provider-preflight.mjs"
@@ -154,7 +160,9 @@ jobs:
         run: |
           bash -n ./scripts/configure-aws-oidc.sh
           bash -n ./scripts/ensure-frontend-csp.sh
+          node --check ./scripts/auth-journey-smoke.mjs
           node --check ./scripts/provider-preflight.mjs
+          ruby -e "require 'yaml'; Dir['.github/workflows/*.yml'].sort.each { |path| YAML.load_file(path) }"
           ruby -e "require 'yaml'; YAML.load_file('.github/dependabot.yml')"
 
       - name: Block deprecated AWS credentials action

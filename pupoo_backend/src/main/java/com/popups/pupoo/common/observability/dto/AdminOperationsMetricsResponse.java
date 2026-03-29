@@ -13,6 +13,8 @@ public record AdminOperationsMetricsResponse(
 ) {
 
     public record AuthMetrics(
+            OperationSummary signupStart,
+            OperationSummary signupComplete,
             OperationSummary passwordLogin,
             OperationSummary socialLogin,
             OperationSummary signupLogin,

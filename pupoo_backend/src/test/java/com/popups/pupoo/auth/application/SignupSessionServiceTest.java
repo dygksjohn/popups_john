@@ -9,6 +9,7 @@ import com.popups.pupoo.auth.port.SmsOtpSenderPort;
 import com.popups.pupoo.auth.support.VerificationHashSupport;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
+import com.popups.pupoo.common.observability.application.OperationsMetricsService;
 import com.popups.pupoo.user.application.UserService;
 import com.popups.pupoo.user.social.application.SocialAccountService;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,6 +44,7 @@ class SignupSessionServiceTest {
         EmailVerificationSenderPort emailVerificationSenderPort = mock(EmailVerificationSenderPort.class);
         smsOtpSenderPort = mock(SmsOtpSenderPort.class);
         VerificationHashSupport verificationHashSupport = new VerificationHashSupport("test-salt", "");
+        OperationsMetricsService operationsMetricsService = mock(OperationsMetricsService.class);
 
         signupSessionService = new SignupSessionService(
                 signupSessionRepository,
@@ -54,6 +56,7 @@ class SignupSessionServiceTest {
                 emailVerificationSenderPort,
                 smsOtpSenderPort,
                 verificationHashSupport,
+                operationsMetricsService,
                 5,
                 60,
                 5,
