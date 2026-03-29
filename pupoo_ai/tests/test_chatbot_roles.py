@@ -8,7 +8,6 @@ sys.path.append(str(Path(__file__).resolve().parents[2]))
 from pupoo_ai.app.api.routers.chatbot import handle_internal_admin_chat, handle_user_chat  # noqa: E402
 from pupoo_ai.app.features.chatbot.dto.request import ChatContext, ChatRequest  # noqa: E402
 from pupoo_ai.app.features.chatbot.dto.response import ChatResponse  # noqa: E402
-from pupoo_ai.app.features.chatbot.prompts.system import USER_SYSTEM_PROMPT  # noqa: E402
 from pupoo_ai.app.features.chatbot.service.chatbot_service import chat  # noqa: E402
 
 
@@ -62,11 +61,9 @@ class ChatbotServiceRoleTest(unittest.IsolatedAsyncioTestCase):
         ) as mocked_invoke:
             response = await chat(request)
 
-        self.assertIn("\ubb34\uc5c7\uc744 \ub3c4\uc640\ub4dc\ub9b4\uae4c\uc694?", response.message)
-        self.assertEqual(
-            mocked_invoke.await_args.kwargs["system_prompt"],
-            USER_SYSTEM_PROMPT,
-        )
+        self.assertIn("\ud478\ub9ac", response.message)
+        self.assertGreater(len(response.actions), 0)
+        mocked_invoke.assert_not_awaited()
 
     async def test_user_name_question_returns_puri_identity(self):
         request = ChatRequest(message="\ub108 \uc774\ub984\uc774 \ubb50\uc57c?")
@@ -74,7 +71,7 @@ class ChatbotServiceRoleTest(unittest.IsolatedAsyncioTestCase):
         response = await chat(request)
 
         self.assertIn("\ud478\ub9ac", response.message)
-        self.assertEqual(response.actions, [])
+        self.assertGreater(len(response.actions), 0)
 
 
 if __name__ == "__main__":

@@ -129,6 +129,17 @@ const QUICK_ACTIONS = [
   },
 ];
 
+function createEmptyConversationMemory() {
+  return {
+    lastEventId: null,
+    lastEventName: "",
+    lastTopic: "",
+    lastNoticeId: null,
+    lastFaqId: null,
+    lastSummaryType: "",
+  };
+}
+
 function createBotMessage(id, text, extras = {}) {
   return {
     id,
@@ -164,6 +175,19 @@ function normalizeActions(actions) {
       label: resolveActionLabel(action),
     },
   }));
+}
+
+function mergeConversationMemory(prevMemory, contextHints) {
+  // 서버가 내려준 문맥 힌트만 골라 다음 질문의 기본 문맥으로 이어 붙인다.
+  if (!contextHints || typeof contextHints !== "object") return prevMemory;
+
+  const nextMemory = { ...prevMemory };
+  for (const [key, value] of Object.entries(contextHints)) {
+    if (!(key in nextMemory)) continue;
+    if (value === undefined || value === null || value === "") continue;
+    nextMemory[key] = value;
+  }
+  return nextMemory;
 }
 
 function enrichBotMessage(id, response) {
@@ -228,7 +252,12 @@ async function requestChat({ history, userMessage, context }) {
     );
   }
 
-  return payload?.data || { message: "응답을 받지 못했어요.", messageType: "default", actions: [] };
+  return payload?.data || {
+    message: "응답을 받지 못했어요.",
+    messageType: "default",
+    actions: [],
+    contextHints: {},
+  };
 }
 
 export function useSiteChatBot() {
@@ -238,6 +267,7 @@ export function useSiteChatBot() {
   const [messages, setMessages] = useState(initialMessages);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [conversationMemory, setConversationMemory] = useState(createEmptyConversationMemory);
   const idRef = useRef(2);
 
   const currentContext = useMemo(
@@ -245,8 +275,9 @@ export function useSiteChatBot() {
       currentPage: resolveCurrentPage(location.pathname),
       route: location.pathname,
       role: "user",
+      ...conversationMemory,
     }),
-    [location.pathname],
+    [conversationMemory, location.pathname],
   );
 
   const quickActions = useMemo(() => QUICK_ACTIONS, []);
@@ -270,6 +301,7 @@ export function useSiteChatBot() {
           userMessage: trimmed,
           context: currentContext,
         });
+        setConversationMemory((prev) => mergeConversationMemory(prev, response?.contextHints));
         setMessages((prev) => [
           ...prev,
           enrichBotMessage(idRef.current++, response),
@@ -336,11 +368,13 @@ export function useSiteChatBot() {
     setMessages(initialMessages());
     setInput("");
     setIsTyping(false);
+    setConversationMemory(createEmptyConversationMemory());
   }, []);
 
   // 홈 버튼은 위젯을 닫지 않고 대화를 가볍게 다시 시작할 수 있게 한다.
   const clearMessages = useCallback(() => {
     setMessages([createBotMessage(idRef.current++, "대화를 새로 시작할게요! 뭐든 물어봐 주세요 🐾")]);
+    setConversationMemory(createEmptyConversationMemory());
   }, []);
 
   return {
