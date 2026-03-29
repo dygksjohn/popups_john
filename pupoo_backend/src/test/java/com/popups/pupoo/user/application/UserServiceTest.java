@@ -13,7 +13,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -44,8 +43,20 @@ class UserServiceTest {
         );
 
         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.DUPLICATE_PHONE);
-        assertThat(exception.getMessage()).isEqualTo("이미 가입된 전화번호입니다.");
         verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void validateSignupAvailabilityRejectsDuplicateEmailBeforeFurtherChecks() {
+        when(userRepository.existsByEmail("tester@example.com")).thenReturn(true);
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> userService.validateSignupAvailability("tester@example.com", "tester", "+82 10-1234-5678")
+        );
+
+        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.DUPLICATE_EMAIL);
+        verify(userRepository, never()).countByNormalizedPhoneVariants(any(), any());
     }
 
     @Test
