@@ -16,6 +16,7 @@ on:
       - "pupoo_backend/**"
       - "pupoo_frontend/**"
       - "scripts/auth-journey-smoke.mjs"
+      - "scripts/apply-k8s-base-preserving-images.sh"
       - "scripts/check-import-case.mjs"
       - "scripts/configure-aws-oidc.sh"
       - "scripts/ensure-frontend-csp.sh"
@@ -112,6 +113,7 @@ jobs:
               - "k8s/**"
               - "pupoo_ai/**"
               - "pupoo_backend/**"
+              - "scripts/apply-k8s-base-preserving-images.sh"
               - "scripts/auth-journey-smoke.mjs"
               - "scripts/configure-aws-oidc.sh"
             backend_image:
@@ -431,8 +433,11 @@ jobs:
             --type merge \
             --patch-file /tmp/pupoo-ai-secret-patch.yaml
 
-      - name: Apply base manifests
-        run: kubectl apply -k k8s/base
+      - name: Apply base manifests while preserving runtime images
+        env:
+          BACKEND_FALLBACK_IMAGE: 593797021262.dkr.ecr.ap-northeast-2.amazonaws.com/${{ vars.BACKEND_ECR_REPOSITORY }}:latest
+          AI_FALLBACK_IMAGE: 593797021262.dkr.ecr.ap-northeast-2.amazonaws.com/${{ vars.AI_ECR_REPOSITORY }}:latest
+        run: bash ./scripts/apply-k8s-base-preserving-images.sh
 
   backend-image:
     runs-on: ubuntu-latest
