@@ -34,10 +34,12 @@ _GREETING_KEYWORDS = ("\uc548\ub155", "\ubc18\uac00\uc6cc", "\ud558\uc774", "hel
 _FOLLOW_UP_EVENT_KEYWORDS = ("\uadf8 \ud589\uc0ac", "\uadf8\uac70", "\uac70\uae30", "\uadf8\uacf3", "\ud574\ub2f9 \ud589\uc0ac", "\uc774\ubc88 \ud589\uc0ac")
 _CAPABILITY_KEYWORDS = (
     "\ubb50 \ud560 \uc218 \uc788\uc5b4",
+    "뭘 할 수 있어",
     "\ubb34\uc5c7\uc744 \ub3c4\uc640\uc918",
     "\ubb50\ud574",
     "\ub3c4\uc640\uc904 \uc218 \uc788\uc5b4",
     "\uc5b4\ub5a4 \uac78 \ud560 \uc218 \uc788\uc5b4",
+    "\ud560 \uc218 \uc788\ub294 \uac8c \ubb50\uc57c",
 )
 _NAME_KEYWORDS = ("\uc774\ub984", "\ub204\uad6c\uc57c", "\uc790\uae30\uc18c\uac1c", "\uc815\uccb4")
 _KEYWORD_CANDIDATES = (
@@ -158,19 +160,19 @@ class GroundedAnswerService:
     async def answer_user_structured(self, request: ChatRequest) -> ChatResponse | None:
         # 행사·도움말처럼 근거 데이터를 붙일 수 있는 답변을 먼저 시도하고 이후 일반 모델로 넘긴다.
         message = request.message
-        conversational_reply = self._build_user_conversational_response(message)
+        conversational_reply = self._build_user_conversational_chat_response(message, request.context)
         if conversational_reply is not None:
-            return ChatResponse(message=conversational_reply, actions=[])
+            return conversational_reply
 
         try:
             if self._is_program_query(message):
-                event = await self._select_event(message, history=request.history)
+                event = await self._select_event(message, context=request.context, history=request.history)
                 if event is not None:
                     programs = await self._select_programs_for_event(int(event.get("eventId") or 0))
                     return self._build_user_program_chat_response(event, programs)
 
             if self._is_event_query(message):
-                event = await self._select_event(message, history=request.history)
+                event = await self._select_event(message, context=request.context, history=request.history)
                 if event is not None:
                     programs = await self._select_programs_for_event(int(event.get("eventId") or 0))
                     return self._build_user_event_chat_response(message, event, programs)
@@ -248,6 +250,7 @@ class GroundedAnswerService:
         self,
         message: str,
         *,
+        context=None,
         history: list[MessageItem] | None = None,
     ) -> dict[str, Any] | None:
         # 행사 선택은 이름 직접 매칭을 우선하고, 없으면 직전 대화 맥락과 상태 의도를 순서대로 본다.
@@ -258,6 +261,11 @@ class GroundedAnswerService:
         matched = self._match_event_by_name(message, events)
         if matched is not None:
             return matched
+
+        if context and self._is_follow_up_event_query(message):
+            context_match = self._match_event_from_context(context, events)
+            if context_match is not None:
+                return context_match
 
         if history and self._is_follow_up_event_query(message):
             history_match = self._match_event_from_history(history, events)
@@ -328,6 +336,23 @@ class GroundedAnswerService:
             event_name = str(event.get("eventName") or "")
             if event_name and _normalize(event_name) in normalized_message:
                 return event
+        return None
+
+    def _match_event_from_context(
+        self,
+        context,
+        events: list[dict[str, Any]],
+    ) -> dict[str, Any] | None:
+        last_event_id = getattr(context, "last_event_id", None)
+        if isinstance(last_event_id, int):
+            for event in events:
+                if int(event.get("eventId") or 0) == last_event_id:
+                    return event
+
+        last_event_name = str(getattr(context, "last_event_name", "") or "")
+        if last_event_name:
+            return self._match_event_by_name(last_event_name, events)
+
         return None
 
     def _match_event_from_history(
@@ -434,7 +459,49 @@ class GroundedAnswerService:
                 "\uad81\uae08\ud55c \uac78 \ud558\ub098\ub9cc \ub9d0\ud574 \uc8fc\uc2dc\uba74 \ubc14\ub85c \uc774\uc5b4\uc11c \uc548\ub0b4\ud574\ub4dc\ub9b4\uac8c\uc694."
             )
 
+        if _contains_any(message, _GREETING_KEYWORDS):
+            return (
+                "\uc548\ub155\ud558\uc138\uc694, \ud478\ub9ac\uc608\uc694. "
+                "\uc9c0\uae08 \uc9c4\ud589 \uc911\uc778 \ud589\uc0ac \uc548\ub0b4\ubd80\ud130 \uccb4\ud06c\uc778, \uacb0\uc81c, \ud658\ubd88, \ub9c8\uc774\ud398\uc774\uc9c0 \uc774\uc6a9\uae4c\uc9c0 \ubc14\ub85c \ub3c4\uc640\ub4dc\ub9b4\uac8c\uc694."
+            )
+
         return None
+
+    def _build_user_conversational_chat_response(self, message: str, context) -> ChatResponse | None:
+        conversational_reply = self._build_user_conversational_response(message)
+        if conversational_reply is None:
+            return None
+
+        last_event_name = str(getattr(context, "last_event_name", "") or "")
+        topic = "intro"
+        if _contains_any(message, _CAPABILITY_KEYWORDS):
+            topic = "capability"
+        elif _contains_any(message, _GREETING_KEYWORDS):
+            topic = "greeting"
+        elif _contains_any(message, _NAME_KEYWORDS):
+            topic = "identity"
+
+        if last_event_name and topic in {"greeting", "capability"}:
+            conversational_reply = (
+                f"{conversational_reply} \ubc29\uae08 \ubcf4\ub358 {last_event_name} \ud589\uc0ac\ub3c4 \uc774\uc5b4\uc11c \uc548\ub0b4\ud574\ub4dc\ub9b4 \uc218 \uc788\uc5b4\uc694."
+            )
+
+        actions = [
+            self._prompt_action("\uc9c4\ud589 \uc911\uc778 \ud589\uc0ac \uc54c\ub824\uc918", "\uc9c0\uae08 \uc9c4\ud589 \uc911\uc778 \ud589\uc0ac \uc54c\ub824\uc918"),
+            self._prompt_action("\ud504\ub85c\uadf8\ub7a8 \ucd94\ucc9c", "\uc9c0\uae08 \ucc38\uc5ec\ud558\uae30 \uc88b\uc740 \ud504\ub85c\uadf8\ub7a8 \ucd94\ucc9c\ud574\uc918"),
+            self._prompt_action("\uccb4\ud06c\uc778 \ubc29\ubc95", "\uccb4\ud06c\uc778 \uc5b4\ub5bb\uac8c \ud574?"),
+            self._prompt_action("\uacb0\uc81c\u00b7\ud658\ubd88 \uc548\ub0b4", "\uacb0\uc81c\ub791 \ud658\ubd88\uc740 \uc5b4\ub5bb\uac8c \ud574?"),
+            self._navigate_action("\ub9c8\uc774\ud398\uc774\uc9c0", "/auth/mypage"),
+        ]
+        return ChatResponse(
+            message=conversational_reply,
+            actions=actions,
+            contextHints=self._context_hints(
+                topic=topic,
+                summary_type="guide",
+                event_name=last_event_name or None,
+            ),
+        )
 
     def _build_user_event_chat_response(
         self,
@@ -462,6 +529,8 @@ class GroundedAnswerService:
 
         summary = {
             "summaryType": "event",
+            "eventId": int(event.get("eventId") or 0),
+            "eventName": name,
             "title": f"{name} \uc548\ub0b4",
             "items": [
                 {"label": "\ud589\uc0ac\uba85", "value": name},
@@ -478,10 +547,20 @@ class GroundedAnswerService:
             {"type": "SHOW_SUMMARY", "payload": summary},
             self._prompt_action("\uc7a5\uc18c\ub9cc \ub2e4\uc2dc \ubcf4\uae30", f"{name} \uc7a5\uc18c \uc54c\ub824\uc918"),
             self._prompt_action("\ud504\ub85c\uadf8\ub7a8 \ucd94\ucc9c", f"{name} \ud504\ub85c\uadf8\ub7a8 \ucd94\ucc9c\ud574\uc918"),
+            self._prompt_action("\uacb0\uc81c \uc548\ub0b4", f"{name} \ud589\uc0ac \uacb0\uc81c\ub294 \uc5b4\ub5bb\uac8c \ud574?"),
             self._navigate_action("\ud504\ub85c\uadf8\ub7a8 \ubcf4\ub7ec\uac00\uae30", f"/program/all/{event.get('eventId')}"),
             self._navigate_action("\uc2e4\uc2dc\uac04 \ud604\ud669", f"/realtime/dashboard/{event.get('eventId')}"),
         ]
-        return ChatResponse(message=reply, actions=actions)
+        return ChatResponse(
+            message=reply,
+            actions=actions,
+            contextHints=self._context_hints(
+                topic="event",
+                summary_type="event",
+                event_id=int(event.get("eventId") or 0),
+                event_name=name,
+            ),
+        )
 
     def _build_user_program_chat_response(
         self,
@@ -497,10 +576,18 @@ class GroundedAnswerService:
                     self._navigate_action("\ud504\ub85c\uadf8\ub7a8 \ubcf4\ub7ec\uac00\uae30", f"/program/all/{event.get('eventId')}"),
                     self._navigate_action("\ud589\uc0ac \ubcf4\ub7ec\uac00\uae30", "/event/current"),
                 ],
+                contextHints=self._context_hints(
+                    topic="program",
+                    summary_type="program",
+                    event_id=int(event.get("eventId") or 0),
+                    event_name=name,
+                ),
             )
 
         summary = {
             "summaryType": "program",
+            "eventId": int(event.get("eventId") or 0),
+            "eventName": name,
             "title": f"{name} \ucd94\ucc9c \ud504\ub85c\uadf8\ub7a8",
             "items": [
                 {"label": "\ud589\uc0ac", "value": name},
@@ -515,7 +602,16 @@ class GroundedAnswerService:
             self._navigate_action("\uc2e4\uc2dc\uac04 \ud604\ud669", f"/realtime/dashboard/{event.get('eventId')}"),
             self._prompt_action("\ud589\uc0ac \uc7a5\uc18c \ub2e4\uc2dc \ubcf4\uae30", f"{name} \uc7a5\uc18c \uc54c\ub824\uc918"),
         ]
-        return ChatResponse(message=reply, actions=actions)
+        return ChatResponse(
+            message=reply,
+            actions=actions,
+            contextHints=self._context_hints(
+                topic="program",
+                summary_type="program",
+                event_id=int(event.get("eventId") or 0),
+                event_name=name,
+            ),
+        )
 
     def _build_user_notice_chat_response(self, notice: dict[str, Any]) -> ChatResponse:
         title = str(notice.get("title") or "\ucd5c\uc2e0 \uacf5\uc9c0")
@@ -525,6 +621,7 @@ class GroundedAnswerService:
 
         summary = {
             "summaryType": "notice",
+            "noticeId": int(notice_id or 0),
             "title": title,
             "items": [
                 {"label": "\uacf5\uc9c0", "value": title},
@@ -542,13 +639,23 @@ class GroundedAnswerService:
             reply = f"'{title}' \uacf5\uc9c0\ub97c \uba3c\uc800 \ubcf4\uc2dc\uba74 \uc88b\uc5b4\uc694. {event_name} \uad00\ub828 \uc548\ub0b4\uc774\uace0 \ud575\uc2ec \ub0b4\uc6a9\uc740 {content}"
         else:
             reply = f"'{title}' \uacf5\uc9c0\ub97c \uba3c\uc800 \ud655\uc778\ud574 \ubcf4\uc138\uc694. \ud575\uc2ec \ub0b4\uc6a9\uc740 {content}"
-        return ChatResponse(message=reply, actions=actions)
+        return ChatResponse(
+            message=reply,
+            actions=actions,
+            contextHints=self._context_hints(
+                topic="notice",
+                summary_type="notice",
+                notice_id=int(notice_id or 0),
+            ),
+        )
 
     def _build_user_faq_chat_response(self, faq: dict[str, Any], topic: str | None) -> ChatResponse:
         title = str(faq.get("title") or "\uad00\ub828 FAQ")
         answer = _trim_text(faq.get("answerContent") or faq.get("content") or "", limit=140)
         summary = {
             "summaryType": "faq",
+            "faqId": int(faq.get("postId") or 0),
+            "topic": topic or "faq",
             "title": title,
             "items": [
                 {"label": "FAQ", "value": title},
@@ -561,6 +668,11 @@ class GroundedAnswerService:
         return ChatResponse(
             message=f"'{title}' FAQ\ub97c \uae30\uc900\uc73c\ub85c \uc548\ub0b4\ud574\ub4dc\ub9b4\uac8c\uc694. \ud575\uc2ec\uc740 {answer}",
             actions=actions,
+            contextHints=self._context_hints(
+                topic=topic or "faq",
+                summary_type="faq",
+                faq_id=int(faq.get("postId") or 0),
+            ),
         )
 
     def _build_user_help_chat_response(self, topic: str) -> ChatResponse:
@@ -568,6 +680,7 @@ class GroundedAnswerService:
         meta = _USER_HELP_ROUTE_META[topic]
         summary = {
             "summaryType": "guide",
+            "topic": topic,
             "title": meta["title"],
             "items": [
                 {"label": "\uc548\ub0b4", "value": meta["guide"]},
@@ -586,6 +699,10 @@ class GroundedAnswerService:
         return ChatResponse(
             message=meta["guide"],
             actions=actions,
+            contextHints=self._context_hints(
+                topic=topic,
+                summary_type="guide",
+            ),
         )
 
     def _build_program_section(self, programs: list[dict[str, Any]]) -> dict[str, Any]:
@@ -633,6 +750,31 @@ class GroundedAnswerService:
             return [self._navigate_action("FAQ \ubcf4\uae30", "/community/faq")]
         meta = _USER_HELP_ROUTE_META[topic]
         return [self._navigate_action(meta["label"], meta["route"])]
+
+    def _context_hints(
+        self,
+        *,
+        topic: str | None = None,
+        summary_type: str | None = None,
+        event_id: int | None = None,
+        event_name: str | None = None,
+        notice_id: int | None = None,
+        faq_id: int | None = None,
+    ) -> dict[str, Any]:
+        hints: dict[str, Any] = {}
+        if topic:
+            hints["lastTopic"] = topic
+        if summary_type:
+            hints["lastSummaryType"] = summary_type
+        if isinstance(event_id, int) and event_id > 0:
+            hints["lastEventId"] = event_id
+        if event_name:
+            hints["lastEventName"] = event_name
+        if isinstance(notice_id, int) and notice_id > 0:
+            hints["lastNoticeId"] = notice_id
+        if isinstance(faq_id, int) and faq_id > 0:
+            hints["lastFaqId"] = faq_id
+        return hints
 
     def _navigate_action(self, label: str, route: str) -> dict[str, Any]:
         return {"type": "NAVIGATE", "payload": {"label": label, "route": route}}

@@ -51,6 +51,12 @@ class ChatContext(BaseModel):
     current_page: str = Field(default="", alias="currentPage")
     route: str = ""
     role: str = Field(default="user", description="'admin' 또는 'user'")
+    last_event_id: int | None = Field(default=None, alias="lastEventId")
+    last_event_name: str = Field(default="", alias="lastEventName")
+    last_topic: str = Field(default="", alias="lastTopic")
+    last_notice_id: int | None = Field(default=None, alias="lastNoticeId")
+    last_faq_id: int | None = Field(default=None, alias="lastFaqId")
+    last_summary_type: str = Field(default="", alias="lastSummaryType")
     notice_draft: NoticeDraftContext | None = Field(default=None, alias="noticeDraft")
     notice_execution: ExecutionContext | None = Field(default=None, alias="noticeExecution")
     notification_draft: NotificationDraftContext | None = Field(default=None, alias="notificationDraft")

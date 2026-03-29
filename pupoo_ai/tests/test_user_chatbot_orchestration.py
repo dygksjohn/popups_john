@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-from pupoo_ai.app.features.chatbot.dto.request import ChatRequest, MessageItem  # noqa: E402
+from pupoo_ai.app.features.chatbot.dto.request import ChatContext, ChatRequest, MessageItem  # noqa: E402
 from pupoo_ai.app.features.chatbot.service.chatbot_service import chat  # noqa: E402
 
 
@@ -97,6 +97,45 @@ class UserChatbotOrchestrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn("킨텍스", response.message)
         mocked_invoke.assert_not_awaited()
 
+    async def test_user_follow_up_location_uses_context_memory_without_history(self):
+        request = ChatRequest(
+            message="장소는 어디야?",
+            context=ChatContext(
+                lastEventId=3,
+                lastEventName="코리아 펫 엑스포",
+                lastTopic="event",
+                lastSummaryType="event",
+            ),
+        )
+
+        with patch(
+            "pupoo_ai.app.features.chatbot.service.chatbot_service.BackendApiClient.list_events",
+            new=AsyncMock(
+                return_value=[
+                    {
+                        "eventId": 3,
+                        "eventName": "코리아 펫 엑스포",
+                        "location": "킨텍스",
+                        "startAt": "2026-03-10T09:00:00",
+                        "endAt": "2026-03-30T18:00:00",
+                        "status": "ONGOING",
+                    }
+                ]
+            ),
+        ), patch(
+            "pupoo_ai.app.features.chatbot.service.chatbot_service.BackendApiClient.list_programs",
+            new=AsyncMock(return_value=[]),
+        ), patch(
+            "pupoo_ai.app.features.chatbot.service.chatbot_service.invoke_bedrock",
+            new=AsyncMock(return_value="LLM fallback"),
+        ) as mocked_invoke:
+            response = await chat(request)
+
+        self.assertIn("코리아 펫 엑스포", response.message)
+        self.assertIn("킨텍스", response.message)
+        self.assertEqual(response.context_hints["lastEventId"], 3)
+        mocked_invoke.assert_not_awaited()
+
     async def test_user_login_help_returns_navigation_action(self):
         request = ChatRequest(message="로그인 어떻게 해?")
 
@@ -120,6 +159,20 @@ class UserChatbotOrchestrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn("/auth/login", navigate_routes)
         self.assertIn("로그인", response.message)
         mocked_invoke.assert_not_awaited()
+
+    async def test_user_capability_question_returns_action_menu(self):
+        request = ChatRequest(
+            message="푸리야 뭘 할 수 있어?",
+            context=ChatContext(lastEventName="코리아 펫 엑스포"),
+        )
+
+        response = await chat(request)
+
+        action_types = [action.type for action in response.actions]
+        self.assertIn("SEND_MESSAGE", action_types)
+        self.assertIn("NAVIGATE", action_types)
+        self.assertIn("코리아 펫 엑스포", response.message)
+        self.assertEqual(response.context_hints["lastTopic"], "capability")
 
 
 if __name__ == "__main__":
