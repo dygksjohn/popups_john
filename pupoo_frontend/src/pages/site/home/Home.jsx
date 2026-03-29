@@ -633,7 +633,7 @@ export default function Home() {
 
   return (
       <div>
-        <section className="relative h-screen w-full overflow-hidden">
+        <section className="relative h-dvh w-full overflow-hidden">
           <LazyInlineVideo
             ref={videoRef}
             key={currentVideoIndex}
