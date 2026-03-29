@@ -25,7 +25,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -93,29 +95,33 @@ public class PostService {
 
         Page<Post> page;
         String normalizedSortKey = sortKey == null ? "" : sortKey.trim().toLowerCase();
-        if ("comments".equals(normalizedSortKey)
+        boolean sortByComments = "comments".equals(normalizedSortKey)
                 || "comment".equals(normalizedSortKey)
-                || "commentcount".equals(normalizedSortKey)) {
+                || "commentcount".equals(normalizedSortKey);
+        // 프론트는 sortKey(recent/views)만 보내고 Spring sort 파라미터를 쓰지 않음 → 명시적 ORDER BY 없으면 PK/미정 순서로 보일 수 있음
+        Pageable pageableForQuery = sortByComments ? pageable : applyPublicPostSort(pageable, normalizedSortKey);
+
+        if (sortByComments) {
             String publishedStatus = PostStatus.PUBLISHED.name();
             page = switch (effectiveType) {
-                case TITLE -> postRepository.searchByTitleSortedByCommentCount(resolvedBoardId, keyword, publishedStatus, pageable);
-                case CONTENT -> postRepository.searchByContentSortedByCommentCount(resolvedBoardId, keyword, publishedStatus, pageable);
+                case TITLE -> postRepository.searchByTitleSortedByCommentCount(resolvedBoardId, keyword, publishedStatus, pageableForQuery);
+                case CONTENT -> postRepository.searchByContentSortedByCommentCount(resolvedBoardId, keyword, publishedStatus, pageableForQuery);
                 case WRITER -> {
                     Long writerId = parseLongOrNull(keyword);
-                    if (writerId == null) yield Page.empty(pageable);
-                    yield postRepository.searchByWriterSortedByCommentCount(resolvedBoardId, writerId, publishedStatus, pageable);
+                    if (writerId == null) yield Page.empty(pageableForQuery);
+                    yield postRepository.searchByWriterSortedByCommentCount(resolvedBoardId, writerId, publishedStatus, pageableForQuery);
                 }
-                default -> postRepository.searchByTitleContentSortedByCommentCount(resolvedBoardId, keyword, publishedStatus, pageable);
+                default -> postRepository.searchByTitleContentSortedByCommentCount(resolvedBoardId, keyword, publishedStatus, pageableForQuery);
             };
         } else {
             page = switch (effectiveType) {
-                case TITLE -> postRepository.searchByTitle(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable);
-                case CONTENT -> postRepository.searchByContent(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable);
+                case TITLE -> postRepository.searchByTitle(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageableForQuery);
+                case CONTENT -> postRepository.searchByContent(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageableForQuery);
                 case WRITER -> {
                     Long writerId = parseLongOrNull(keyword);
-                    yield postRepository.searchByWriter(resolvedBoardId, writerId, PostStatus.PUBLISHED, pageable);
+                    yield postRepository.searchByWriter(resolvedBoardId, writerId, PostStatus.PUBLISHED, pageableForQuery);
                 }
-                default -> postRepository.search(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable);
+                default -> postRepository.search(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageableForQuery);
             };
         }
 
@@ -134,6 +140,23 @@ public class PostService {
         } catch (NumberFormatException e) {
             return null;
         }
+    }
+
+    /** sortKey(recent/views)만 오는 공개 목록용: JPQL에 ORDER BY가 없으므로 Pageable Sort로 등록일·조회수 기준을 고정한다. */
+    private static Pageable applyPublicPostSort(Pageable pageable, String normalizedSortKey) {
+        Sort sort;
+        if ("views".equals(normalizedSortKey)
+                || "view".equals(normalizedSortKey)
+                || "viewcount".equals(normalizedSortKey)) {
+            sort = Sort.by(Sort.Order.desc("viewCount"), Sort.Order.desc("postId"));
+        } else {
+            // recent, 빈 값, 그 외 → 등록일 최신순
+            sort = Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("postId"));
+        }
+        if (pageable.isUnpaged()) {
+            return PageRequest.of(0, Integer.MAX_VALUE, sort);
+        }
+        return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
     }
 
     @Transactional
