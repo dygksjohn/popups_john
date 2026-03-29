@@ -25,8 +25,11 @@ const chatStyles = `
   30% { transform: translateY(-5px); opacity: 1; }
 }
 .scb-msg { animation: scb-msgPop .24s ease-out; }
-.scb-panel::-webkit-scrollbar { width: 6px; }
-.scb-panel::-webkit-scrollbar-thumb { background: #374151; border-radius: 999px; }
+.scb-panel::-webkit-scrollbar { width: 4px; }
+.scb-panel::-webkit-scrollbar-track { background: transparent; }
+.scb-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 999px; transition: background .2s; }
+.scb-panel::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+.scb-panel { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.12) transparent; }
 `;
 
 function fmt(date) {
