@@ -16,6 +16,19 @@
     {
       "Action": "UPSERT",
       "ResourceRecordSet": {
+        "Name": "pupoo.site.",
+        "Type": "TXT",
+        "TTL": 300,
+        "ResourceRecords": [
+          {
+            "Value": "\"google-site-verification=a_g-ISKWAxb3Hx2WxV5vgTbyyAiLQC5zpWcHO9RCyvs\""
+          }
+        ]
+      }
+    },
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
         "Name": "www.pupoo.site.",
         "Type": "CNAME",
         "TTL": 300,
