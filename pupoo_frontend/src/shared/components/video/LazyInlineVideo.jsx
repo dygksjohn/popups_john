@@ -107,12 +107,13 @@ export const LazyInlineVideo = memo(
         ) : null}
         <video
           ref={localRef}
-          className={className}
+          className={className || "absolute inset-0 h-full w-full object-cover"}
           style={style}
           autoPlay={autoPlay}
           muted={muted}
           loop={loop}
           playsInline={playsInline}
+          webkit-playsinline=""
           preload={preload}
           poster={poster || undefined}
           onEnded={onEnded}

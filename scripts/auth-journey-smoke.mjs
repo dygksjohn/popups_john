@@ -174,15 +174,13 @@ function dbScalar(sql, dbConfig) {
 
 async function requestJson(method, urlPath, body, cookie) {
   const headers = {
-    Accept: "application/json",
-    Connection: "close",
     "Content-Type": "application/json; charset=utf-8",
   };
   if (cookie) {
     headers.Cookie = cookie;
   }
 
-  const { response, text } = await fetchTextWithRetry(
+  const response = await fetchWithRetry(
     `${apiBaseUrl}${urlPath}`,
     {
       method,
@@ -193,6 +191,7 @@ async function requestJson(method, urlPath, body, cookie) {
     `${method} ${urlPath}`
   );
 
+  const text = await response.text();
   let json = null;
   if (text) {
     try {
@@ -211,24 +210,15 @@ async function requestJson(method, urlPath, body, cookie) {
 }
 
 async function requestText(url) {
-  const { response, text } = await fetchTextWithRetry(
-    url,
-    {
-      method: "GET",
-      headers: {
-        Connection: "close",
-      },
-      redirect: "manual",
-    },
-    `GET ${url}`
-  );
+  const response = await fetchWithRetry(url, { method: "GET", redirect: "manual" }, `GET ${url}`);
+  const text = await response.text();
   return {
     status: response.status,
     text,
   };
 }
 
-async function fetchTextWithRetry(url, init, label) {
+async function fetchWithRetry(url, init, label) {
   let lastError = null;
 
   for (let attempt = 1; attempt <= requestRetryCount; attempt += 1) {
@@ -238,13 +228,11 @@ async function fetchTextWithRetry(url, init, label) {
         signal: AbortSignal.timeout(requestTimeoutMs),
       });
 
-      const text = await response.text();
-
       if (!transientStatusCodes.has(response.status) || attempt === requestRetryCount) {
-        return { response, text };
+        return response;
       }
 
-      const bodyPreview = text.slice(0, 240).replace(/\s+/g, " ").trim();
+      const bodyPreview = (await response.text()).slice(0, 240).replace(/\s+/g, " ").trim();
       log(
         `[retry] ${label} attempt ${attempt}/${requestRetryCount} got transient status ${response.status}` +
           (bodyPreview ? `: ${bodyPreview}` : "")
@@ -468,40 +456,10 @@ async function verifySignupCompleteLoginAndRefresh(dbConfig) {
     dbConfig
   );
 
-  let completeResponse;
-  try {
-    completeResponse = await requestJson("POST", "/api/auth/signup/complete", { signupKey });
-  } catch (error) {
-    log(`signup/complete transient error after retries: ${error.message}`);
-    await sleep(1500);
-
-    const recoveredUserCount = Number(dbScalar(`SELECT COUNT(*) FROM users WHERE email = ${sqlString(email)};`, dbConfig));
-    if (recoveredUserCount === 1) {
-      log("signup/complete recovered after server-side success despite dropped connection");
-      completeResponse = {
-        status: 200,
-        json: {
-          success: true,
-          data: {},
-        },
-        text: "",
-        setCookie: "",
-      };
-    } else {
-      const sessionCount = Number(dbScalar(`SELECT COUNT(*) FROM signup_sessions WHERE email = ${sqlString(email)};`, dbConfig));
-      expect(
-        sessionCount === 1,
-        `signup/complete network recovery failed: users=${recoveredUserCount}, signup_sessions=${sessionCount}`
-      );
-      log("signup/complete retrying once after transient failure left session intact");
-      completeResponse = await requestJson("POST", "/api/auth/signup/complete", { signupKey });
-    }
-  }
+  const completeResponse = await requestJson("POST", "/api/auth/signup/complete", { signupKey });
   expect(completeResponse.status === 200, `signup/complete expected 200, got ${completeResponse.status}: ${completeResponse.text}`);
   expect(completeResponse.json?.success === true, `signup/complete success flag missing: ${completeResponse.text}`);
-  if (!completeResponse.json?.data?.accessToken) {
-    log("signup/complete accessToken missing in recovered path, continuing with login verification");
-  }
+  expect(completeResponse.json?.data?.accessToken, "signup/complete accessToken missing.");
 
   const userCount = Number(dbScalar(`SELECT COUNT(*) FROM users WHERE email = ${sqlString(email)};`, dbConfig));
   expect(userCount === 1, "signup/complete did not create the user.");

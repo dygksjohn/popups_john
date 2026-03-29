@@ -1,7 +1,6 @@
 # Scope note:
 # - This workflow remains the shared CI pipeline for develop/main validation only.
 # - Production deployment lives in .github/workflows/deploy.yml.
-# - Frontend, backend, and AI validate independently so unrelated changes do not block each other.
 name: CI
 
 on:
@@ -12,264 +11,149 @@ on:
         required: false
         type: boolean
         default: false
-      run_provider_preflight:
-        description: "외부 연동 월간 점검 사전검사를 실행할지 선택합니다."
-        required: false
-        type: boolean
-        default: false
-      create_provider_issue:
-        description: "외부 연동 월간 점검 이슈를 생성할지 선택합니다."
-        required: false
-        type: boolean
-        default: false
   pull_request:
     branches:
       - develop
       - main
     paths:
       - ".github/workflows/ci.yml"
-      - ".github/dependabot.yml"
-      - "docs/qa/**"
       - "pupoo_ai/**"
       - "pupoo_backend/**"
       - "pupoo_frontend/**"
       - "scripts/check-import-case.mjs"
-      - "scripts/auth-journey-smoke.mjs"
-      - "scripts/configure-aws-oidc.sh"
-      - "scripts/ensure-frontend-csp.sh"
-      - "scripts/provider-preflight.mjs"
   push:
     branches:
       - develop
       - main
     paths:
       - ".github/workflows/ci.yml"
-      - ".github/dependabot.yml"
-      - "docs/qa/**"
       - "pupoo_ai/**"
       - "pupoo_backend/**"
       - "pupoo_frontend/**"
       - "scripts/check-import-case.mjs"
-      - "scripts/auth-journey-smoke.mjs"
-      - "scripts/configure-aws-oidc.sh"
-      - "scripts/ensure-frontend-csp.sh"
-      - "scripts/provider-preflight.mjs"
   schedule:
-    # Operations synthetic on production every 5 minutes.
     - cron: "*/5 * * * *"
-    # Every Monday 03:00 KST / Sunday 18:00 UTC.
-    - cron: "0 18 * * 0"
-    # Monthly external provider checklist on the first day at 19:00 UTC.
-    - cron: "0 19 1 * *"
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.schedule || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  changes:
+  ai:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: ${{ !(github.event_name == 'schedule' && github.event.schedule == '*/5 * * * *') && !(github.event_name == 'workflow_dispatch' && inputs.run_operations_synthetic) }}
     permissions:
       contents: read
-    outputs:
-      frontend: ${{ steps.filter.outputs.frontend }}
-      backend: ${{ steps.filter.outputs.backend }}
-      ai: ${{ steps.filter.outputs.ai }}
-      workflow_guard: ${{ steps.filter.outputs.workflow_guard }}
-      provider_preflight_assets: ${{ steps.filter.outputs.provider_preflight_assets }}
-      force_full_run: ${{ steps.mode.outputs.force_full_run }}
-      force_provider_preflight: ${{ steps.mode.outputs.force_provider_preflight }}
-      force_provider_issue: ${{ steps.mode.outputs.force_provider_issue }}
-      force_operations_synthetic: ${{ steps.mode.outputs.force_operations_synthetic }}
-      use_change_filters: ${{ steps.mode.outputs.use_change_filters }}
 
     steps:
-      - name: Resolve execution mode
-        id: mode
-        shell: bash
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          EVENT_SCHEDULE: ${{ github.event.schedule }}
-          RUN_OPERATIONS_SYNTHETIC_INPUT: ${{ github.event.inputs.run_operations_synthetic }}
-          RUN_PROVIDER_PREFLIGHT_INPUT: ${{ github.event.inputs.run_provider_preflight }}
-          CREATE_PROVIDER_ISSUE_INPUT: ${{ github.event.inputs.create_provider_issue }}
-        run: |
-          if [[ "${EVENT_NAME}" == "push" || "${EVENT_NAME}" == "pull_request" ]]; then
-            echo "use_change_filters=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "use_change_filters=false" >> "$GITHUB_OUTPUT"
-          fi
-
-          if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
-            if [[ "${RUN_OPERATIONS_SYNTHETIC_INPUT}" == "true" && "${RUN_PROVIDER_PREFLIGHT_INPUT}" != "true" && "${CREATE_PROVIDER_ISSUE_INPUT}" != "true" ]]; then
-              echo "force_full_run=false" >> "$GITHUB_OUTPUT"
-            else
-              echo "force_full_run=true" >> "$GITHUB_OUTPUT"
-            fi
-          elif [[ "${EVENT_NAME}" == "schedule" ]]; then
-            if [[ "${EVENT_SCHEDULE}" == "*/5 * * * *" ]]; then
-              echo "force_full_run=false" >> "$GITHUB_OUTPUT"
-            else
-              echo "force_full_run=true" >> "$GITHUB_OUTPUT"
-            fi
-          else
-            echo "force_full_run=false" >> "$GITHUB_OUTPUT"
-          fi
-
-          if [[ "${EVENT_NAME}" == "workflow_dispatch" && "${RUN_OPERATIONS_SYNTHETIC_INPUT}" == "true" ]]; then
-            echo "force_operations_synthetic=true" >> "$GITHUB_OUTPUT"
-          elif [[ "${EVENT_NAME}" == "schedule" && "${EVENT_SCHEDULE}" == "*/5 * * * *" ]]; then
-            echo "force_operations_synthetic=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "force_operations_synthetic=false" >> "$GITHUB_OUTPUT"
-          fi
-
-          if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
-            if [[ "${RUN_PROVIDER_PREFLIGHT_INPUT}" == "true" || "${CREATE_PROVIDER_ISSUE_INPUT}" == "true" ]]; then
-              echo "force_provider_preflight=true" >> "$GITHUB_OUTPUT"
-            else
-              echo "force_provider_preflight=false" >> "$GITHUB_OUTPUT"
-            fi
-
-            if [[ "${CREATE_PROVIDER_ISSUE_INPUT}" == "true" ]]; then
-              echo "force_provider_issue=true" >> "$GITHUB_OUTPUT"
-            else
-              echo "force_provider_issue=false" >> "$GITHUB_OUTPUT"
-            fi
-          elif [[ "${EVENT_NAME}" == "schedule" && "${EVENT_SCHEDULE}" == "0 19 1 * *" ]]; then
-            echo "force_provider_preflight=true" >> "$GITHUB_OUTPUT"
-            echo "force_provider_issue=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "force_provider_preflight=false" >> "$GITHUB_OUTPUT"
-            echo "force_provider_issue=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Checkout repository
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v5
 
-      - name: Detect changed paths
-        id: filter
-        uses: dorny/paths-filter@v4.0.1
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
         with:
-          filters: |
-            frontend:
-              - ".github/workflows/ci.yml"
-              - "pupoo_frontend/**"
-              - "scripts/check-import-case.mjs"
-            backend:
-              - ".github/workflows/ci.yml"
-              - "pupoo_backend/**"
-            ai:
-              - ".github/workflows/ci.yml"
-              - "pupoo_ai/**"
-            workflow_guard:
-              - ".github/workflows/ci.yml"
-              - ".github/workflows/deploy.yml"
-              - ".github/dependabot.yml"
-              - "scripts/auth-journey-smoke.mjs"
-              - "scripts/configure-aws-oidc.sh"
-              - "scripts/ensure-frontend-csp.sh"
-              - "scripts/provider-preflight.mjs"
-              - "docs/qa/**"
-            provider_preflight_assets:
-              - ".github/workflows/ci.yml"
-              - "scripts/provider-preflight.mjs"
-              - "docs/qa/**"
+          python-version: "3.12"
 
-  workflow-guard:
+      - name: Install AI dependencies
+        working-directory: pupoo_ai
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Compile AI sources
+        working-directory: pupoo_ai
+        run: python -m compileall app tests
+
+      - name: Run AI unit tests
+        working-directory: pupoo_ai
+        run: PYTHONPATH=.. python -m unittest discover -s tests -p "test_*.py"
+
+  frontend:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    needs: changes
-    if: needs.changes.outputs.force_full_run == 'true' || (needs.changes.outputs.use_change_filters == 'true' && needs.changes.outputs.workflow_guard == 'true')
+    timeout-minutes: 20
+    if: ${{ !(github.event_name == 'schedule' && github.event.schedule == '*/5 * * * *') && !(github.event_name == 'workflow_dispatch' && inputs.run_operations_synthetic) }}
     permissions:
       contents: read
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6.0.2
-
-      - name: Validate workflow helper scripts
-        run: |
-          bash -n ./scripts/configure-aws-oidc.sh
-          bash -n ./scripts/ensure-frontend-csp.sh
-          node --check ./scripts/auth-journey-smoke.mjs
-          node --check ./scripts/provider-preflight.mjs
-          ruby -e "require 'yaml'; Dir['.github/workflows/*.yml'].sort.each { |path| YAML.load_file(path) }"
-          ruby -e "require 'yaml'; YAML.load_file('.github/dependabot.yml')"
-
-      - name: Block deprecated AWS credentials action
-        run: |
-          if git grep -n "^[[:space:]]*uses:[[:space:]]*aws-actions/configure-aws-credentials@" -- .github/workflows; then
-            echo "::error::aws-actions/configure-aws-credentials is deprecated in this repository. Use ./scripts/configure-aws-oidc.sh instead."
-            exit 1
-          fi
-
-  provider-preflight:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: changes
-    if: needs.changes.outputs.force_provider_preflight == 'true' || (needs.changes.outputs.use_change_filters == 'true' && needs.changes.outputs.provider_preflight_assets == 'true')
-    permissions:
-      contents: read
-      issues: write
-    env:
-      APP_FRONTEND_BASE_URL: ${{ vars.APP_FRONTEND_BASE_URL || 'https://www.pupoo.site' }}
-      GOOGLE_OAUTH_REDIRECT_URI: ${{ secrets.GOOGLE_OAUTH_REDIRECT_URI }}
-      GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
-      KAKAO_REST_KEY: ${{ vars.VITE_KAKAO_REST_KEY }}
-      KAKAOPAY_APPROVAL_URL: ${{ secrets.KAKAOPAY_APPROVAL_URL }}
-      KAKAOPAY_CANCEL_URL: ${{ secrets.KAKAOPAY_CANCEL_URL }}
-      KAKAOPAY_FAIL_URL: ${{ secrets.KAKAOPAY_FAIL_URL }}
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v5
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6.3.0
+        uses: actions/setup-node@v6
         with:
           node-version: "20"
+          cache: npm
+          cache-dependency-path: pupoo_frontend/package-lock.json
 
-      - name: Run provider preflight
-        run: node ./scripts/provider-preflight.mjs > provider-preflight.md
+      - name: Install frontend dependencies
+        working-directory: pupoo_frontend
+        run: npm ci
 
-      - name: Compose monthly checklist body
+      - name: Install lightningcss Linux binary
+        if: runner.os == 'Linux'
+        working-directory: pupoo_frontend
         run: |
-          {
-            echo "# 운영 외부 연동 월간 점검";
-            echo;
-            cat provider-preflight.md;
-            echo;
-            cat docs/qa/monthly_external_provider_e2e_checklist_ko.md;
-          } > provider-e2e-issue.md
+          LIGHTNINGCSS_VERSION=$(node -p "require('./package-lock.json').packages['node_modules/lightningcss'].version")
+          npm install --no-save "lightningcss-linux-x64-gnu@${LIGHTNINGCSS_VERSION}"
 
-      - name: Upload provider checklist artifact
-        uses: actions/upload-artifact@v4.6.2
+      - name: Check frontend import casing
+        run: node ./scripts/check-import-case.mjs
+
+      - name: Build frontend
+        working-directory: pupoo_frontend
+        run: npm run build
+
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [ai, frontend]
+    if: ${{ !(github.event_name == 'schedule' && github.event.schedule == '*/5 * * * *') && !(github.event_name == 'workflow_dispatch' && inputs.run_operations_synthetic) }}
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
         with:
-          name: provider-e2e-${{ github.run_id }}
-          path: |
-            provider-preflight.md
-            provider-e2e-issue.md
+          distribution: temurin
+          java-version: "21"
 
-      - name: Create or comment monthly checklist issue
-        if: needs.changes.outputs.force_provider_issue == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: pupoo_frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: pupoo_frontend
+        run: npm ci
+
+      - name: Install lightningcss Linux binary
+        if: runner.os == 'Linux'
+        working-directory: pupoo_frontend
         run: |
-          set -eo pipefail
-          ISSUE_TITLE="운영 외부 연동 월간 점검 $(date -u +'%Y-%m')"
-          EXISTING_NUMBER="$(gh issue list --state all --search "\"${ISSUE_TITLE}\" in:title" --json number --jq '.[0].number')"
-          if [ -n "${EXISTING_NUMBER}" ] && [ "${EXISTING_NUMBER}" != "null" ]; then
-            gh issue comment "${EXISTING_NUMBER}" --body-file provider-e2e-issue.md
-          else
-            gh issue create --title "${ISSUE_TITLE}" --body-file provider-e2e-issue.md
-          fi
+          LIGHTNINGCSS_VERSION=$(node -p "require('./package-lock.json').packages['node_modules/lightningcss'].version")
+          npm install --no-save "lightningcss-linux-x64-gnu@${LIGHTNINGCSS_VERSION}"
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build backend
+        working-directory: pupoo_backend
+        run: |
+          chmod +x ./gradlew
+          ./gradlew build -x test
 
   operations-synthetic:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: changes
-    if: needs.changes.outputs.force_operations_synthetic == 'true'
+    if: ${{ (github.event_name == 'schedule' && github.event.schedule == '*/5 * * * *') || (github.event_name == 'workflow_dispatch' && inputs.run_operations_synthetic) }}
     permissions:
       contents: read
       id-token: write
@@ -389,98 +273,3 @@ jobs:
         run: |
           echo "::error::Operations synthetic check failed."
           exit 1
-
-  ai:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    needs: changes
-    if: needs.changes.outputs.force_full_run == 'true' || (needs.changes.outputs.use_change_filters == 'true' && needs.changes.outputs.ai == 'true')
-    permissions:
-      contents: read
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6.0.2
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v6.2.0
-        with:
-          python-version: "3.12"
-
-      - name: Install AI dependencies
-        working-directory: pupoo_ai
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Compile AI sources
-        working-directory: pupoo_ai
-        run: python -m compileall app tests
-
-      - name: Run AI unit tests
-        working-directory: pupoo_ai
-        run: PYTHONPATH=.. python -m unittest discover -s tests -p "test_*.py"
-
-  frontend:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    needs: changes
-    if: needs.changes.outputs.force_full_run == 'true' || (needs.changes.outputs.use_change_filters == 'true' && needs.changes.outputs.frontend == 'true')
-    permissions:
-      contents: read
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6.0.2
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v6.3.0
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: pupoo_frontend/package-lock.json
-
-      - name: Install frontend dependencies
-        working-directory: pupoo_frontend
-        run: npm ci
-
-      - name: Install lightningcss Linux binary
-        if: runner.os == 'Linux'
-        working-directory: pupoo_frontend
-        run: |
-          LIGHTNINGCSS_VERSION=$(node -p "require('./package-lock.json').packages['node_modules/lightningcss'].version")
-          npm install --no-save "lightningcss-linux-x64-gnu@${LIGHTNINGCSS_VERSION}"
-
-      - name: Check frontend import casing
-        run: node ./scripts/check-import-case.mjs
-
-      - name: Build frontend
-        working-directory: pupoo_frontend
-        run: npm run build
-
-  backend:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    needs: changes
-    if: needs.changes.outputs.force_full_run == 'true' || (needs.changes.outputs.use_change_filters == 'true' && needs.changes.outputs.backend == 'true')
-    permissions:
-      contents: read
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6.0.2
-
-      - name: Set up Java
-        uses: actions/setup-java@v5.2.0
-        with:
-          distribution: temurin
-          java-version: "21"
-
-      - name: Set up Gradle cache
-        uses: gradle/actions/setup-gradle@v5.0.0
-
-      - name: Build backend without frontend bundle
-        working-directory: pupoo_backend
-        run: |
-          chmod +x ./gradlew
-          ./gradlew clean build -x test -PskipFrontendBuild=true

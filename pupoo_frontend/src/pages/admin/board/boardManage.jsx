@@ -40,6 +40,7 @@ const devError = (...args) => {
 const styles = `
 @keyframes toastIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes modalIn{from{transform:translateY(20px) scale(0.98);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
 @keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 @keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}
 @keyframes rowFadeOut{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(-30px)}}
@@ -882,23 +883,35 @@ function SlidePanel({
           position: "fixed",
           inset: 0,
           zIndex: 4999,
-          background: "rgba(0,0,0,0.15)",
+          background: "rgba(10,10,18,0.6)",
+          backdropFilter: "blur(4px)",
           animation: "fadeIn .15s ease",
         }}
       />
       <div
         style={{
           position: "fixed",
-          top: 0,
-          right: 0,
-          bottom: 0,
+          inset: 0,
           zIndex: 5000,
-          width: 440,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 20,
+          pointerEvents: "none",
+        }}
+      >
+      <div
+        style={{
+          width: 520,
+          maxWidth: "96vw",
+          maxHeight: "min(680px, 85vh)",
           background: ds.bg,
-          boxShadow: "-4px 0 30px rgba(0,0,0,0.08)",
+          borderRadius: 24,
+          boxShadow: "0 40px 100px rgba(0,0,0,0.3), 0 12px 36px rgba(0,0,0,0.15)",
           display: "flex",
           flexDirection: "column",
-          animation: "slideIn .25s cubic-bezier(.22,1,.36,1)",
+          animation: "modalIn .3s cubic-bezier(.16,1,.3,1)",
+          pointerEvents: "auto",
         }}
       >
         <div
@@ -1142,6 +1155,7 @@ function SlidePanel({
             {saving ? "저장 중..." : isEdit ? "수정 완료" : "등록하기"}
           </button>
         </div>
+      </div>
       </div>
     </>
   );
