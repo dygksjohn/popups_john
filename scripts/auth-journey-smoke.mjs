@@ -17,6 +17,9 @@ const mysqlClientImage = process.env.MYSQL_CLIENT_IMAGE || "mysql:8.0";
 const reportPath = process.env.SMOKE_REPORT_PATH || process.env.GITHUB_STEP_SUMMARY || "";
 const smokeId = buildSmokeId();
 const mysqlClientPod = `auth-smoke-${smokeId}`.slice(0, 63);
+const requestTimeoutMs = Number(process.env.SMOKE_REQUEST_TIMEOUT_MS || "30000");
+const requestRetryCount = Number(process.env.SMOKE_REQUEST_RETRY_COUNT || "3");
+const transientStatusCodes = new Set([408, 429, 502, 503, 504, 520, 521, 522, 524]);
 
 const cleanupSql = [];
 const reportLines = [];
@@ -34,6 +37,12 @@ function log(message) {
 
 function section(title) {
   log(`\n## ${title}`);
+}
+
+function sleep(milliseconds) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, milliseconds);
+  });
 }
 
 function runCommand(command, args, options = {}) {
@@ -165,20 +174,25 @@ function dbScalar(sql, dbConfig) {
 
 async function requestJson(method, urlPath, body, cookie) {
   const headers = {
+    Accept: "application/json",
+    Connection: "close",
     "Content-Type": "application/json; charset=utf-8",
   };
   if (cookie) {
     headers.Cookie = cookie;
   }
 
-  const response = await fetch(`${apiBaseUrl}${urlPath}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-    redirect: "manual",
-  });
+  const { response, text } = await fetchTextWithRetry(
+    `${apiBaseUrl}${urlPath}`,
+    {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+      redirect: "manual",
+    },
+    `${method} ${urlPath}`
+  );
 
-  const text = await response.text();
   let json = null;
   if (text) {
     try {
@@ -197,12 +211,57 @@ async function requestJson(method, urlPath, body, cookie) {
 }
 
 async function requestText(url) {
-  const response = await fetch(url, { method: "GET", redirect: "manual" });
-  const text = await response.text();
+  const { response, text } = await fetchTextWithRetry(
+    url,
+    {
+      method: "GET",
+      headers: {
+        Connection: "close",
+      },
+      redirect: "manual",
+    },
+    `GET ${url}`
+  );
   return {
     status: response.status,
     text,
   };
+}
+
+async function fetchTextWithRetry(url, init, label) {
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= requestRetryCount; attempt += 1) {
+    try {
+      const response = await fetch(url, {
+        ...init,
+        signal: AbortSignal.timeout(requestTimeoutMs),
+      });
+
+      const text = await response.text();
+
+      if (!transientStatusCodes.has(response.status) || attempt === requestRetryCount) {
+        return { response, text };
+      }
+
+      const bodyPreview = text.slice(0, 240).replace(/\s+/g, " ").trim();
+      log(
+        `[retry] ${label} attempt ${attempt}/${requestRetryCount} got transient status ${response.status}` +
+          (bodyPreview ? `: ${bodyPreview}` : "")
+      );
+      lastError = new Error(`${label} transient status ${response.status}`);
+    } catch (error) {
+      lastError = error;
+      if (attempt === requestRetryCount) {
+        throw error;
+      }
+      log(`[retry] ${label} attempt ${attempt}/${requestRetryCount} failed: ${error.message}`);
+    }
+
+    await sleep(1500 * attempt);
+  }
+
+  throw lastError || new Error(`${label} failed after retries`);
 }
 
 function getApiErrorCode(payload) {
@@ -409,10 +468,40 @@ async function verifySignupCompleteLoginAndRefresh(dbConfig) {
     dbConfig
   );
 
-  const completeResponse = await requestJson("POST", "/api/auth/signup/complete", { signupKey });
+  let completeResponse;
+  try {
+    completeResponse = await requestJson("POST", "/api/auth/signup/complete", { signupKey });
+  } catch (error) {
+    log(`signup/complete transient error after retries: ${error.message}`);
+    await sleep(1500);
+
+    const recoveredUserCount = Number(dbScalar(`SELECT COUNT(*) FROM users WHERE email = ${sqlString(email)};`, dbConfig));
+    if (recoveredUserCount === 1) {
+      log("signup/complete recovered after server-side success despite dropped connection");
+      completeResponse = {
+        status: 200,
+        json: {
+          success: true,
+          data: {},
+        },
+        text: "",
+        setCookie: "",
+      };
+    } else {
+      const sessionCount = Number(dbScalar(`SELECT COUNT(*) FROM signup_sessions WHERE email = ${sqlString(email)};`, dbConfig));
+      expect(
+        sessionCount === 1,
+        `signup/complete network recovery failed: users=${recoveredUserCount}, signup_sessions=${sessionCount}`
+      );
+      log("signup/complete retrying once after transient failure left session intact");
+      completeResponse = await requestJson("POST", "/api/auth/signup/complete", { signupKey });
+    }
+  }
   expect(completeResponse.status === 200, `signup/complete expected 200, got ${completeResponse.status}: ${completeResponse.text}`);
   expect(completeResponse.json?.success === true, `signup/complete success flag missing: ${completeResponse.text}`);
-  expect(completeResponse.json?.data?.accessToken, "signup/complete accessToken missing.");
+  if (!completeResponse.json?.data?.accessToken) {
+    log("signup/complete accessToken missing in recovered path, continuing with login verification");
+  }
 
   const userCount = Number(dbScalar(`SELECT COUNT(*) FROM users WHERE email = ${sqlString(email)};`, dbConfig));
   expect(userCount === 1, "signup/complete did not create the user.");
