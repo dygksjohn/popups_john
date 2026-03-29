@@ -23,6 +23,9 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 @Slf4j
 public class GlobalExceptionHandler {
 
+    private static final String UK_USERS_EMAIL = "uk_users_email";
+    private static final String UK_USERS_PHONE = "uk_users_phone";
+    private static final String UK_USERS_NICKNAME = "uk_users_nickname";
     private static final String UK_PAYMENTS_EVENT_USER_ACTIVE = "uk_payments_event_user_active";
     private static final String UK_REFUNDS_PAYMENT_ID = "uk_refunds_payment_id";
     private static final String UK_CONTEST_VOTES_ACTIVE = "uk_contest_votes_active";
@@ -110,6 +113,21 @@ public class GlobalExceptionHandler {
     ) {
         String root = rootMessage(e);
         String lower = (root == null) ? "" : root.toLowerCase();
+
+        if (lower.contains(UK_USERS_EMAIL)) {
+            ErrorCode ec = ErrorCode.DUPLICATE_EMAIL;
+            return build(request, ec, ec.getStatus(), "이미 가입된 이메일입니다.");
+        }
+
+        if (lower.contains(UK_USERS_PHONE)) {
+            ErrorCode ec = ErrorCode.DUPLICATE_PHONE;
+            return build(request, ec, ec.getStatus(), "이미 가입된 전화번호입니다.");
+        }
+
+        if (lower.contains(UK_USERS_NICKNAME)) {
+            ErrorCode ec = ErrorCode.DUPLICATE_NICKNAME;
+            return build(request, ec, ec.getStatus(), "이미 사용 중인 닉네임입니다.");
+        }
 
         if (lower.contains(UK_PAYMENTS_EVENT_USER_ACTIVE)) {
             ErrorCode ec = ErrorCode.PAYMENT_DUPLICATE_ACTIVE;

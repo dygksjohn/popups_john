@@ -1,6 +1,8 @@
 // file: src/main/java/com/popups/pupoo/user/application/UserService.java
 package com.popups.pupoo.user.application;
 
+import com.popups.pupoo.common.exception.BusinessException;
+import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.user.domain.enums.RoleName;
 import com.popups.pupoo.user.domain.enums.UserStatus;
 import com.popups.pupoo.user.domain.model.User;
@@ -19,6 +21,10 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class UserService {
+
+    private static final String DUPLICATE_EMAIL_MESSAGE = "이미 가입된 이메일입니다.";
+    private static final String DUPLICATE_PHONE_MESSAGE = "이미 가입된 전화번호입니다.";
+    private static final String DUPLICATE_NICKNAME_MESSAGE = "이미 사용 중인 닉네임입니다.";
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -48,13 +54,13 @@ public class UserService {
         String normalizedPhone = normalizePhone(req.getPhone());
 
         if (userRepository.existsByEmail(req.getEmail())) {
-            throw new IllegalArgumentException("Email already exists");
+            throw new BusinessException(ErrorCode.DUPLICATE_EMAIL, DUPLICATE_EMAIL_MESSAGE);
         }
-        if (userRepository.existsByNormalizedPhone(normalizedPhone, toAlternatePhone(normalizedPhone))) {
-            throw new IllegalArgumentException("Phone already exists");
+        if (userRepository.countByNormalizedPhoneVariants(normalizedPhone, toAlternatePhone(normalizedPhone)) > 0) {
+            throw new BusinessException(ErrorCode.DUPLICATE_PHONE, DUPLICATE_PHONE_MESSAGE);
         }
         if (userRepository.existsByNickname(req.getNickname())) {
-            throw new IllegalArgumentException("Nickname already exists");
+            throw new BusinessException(ErrorCode.DUPLICATE_NICKNAME, DUPLICATE_NICKNAME_MESSAGE);
         }
 
         User user = new User();
@@ -97,7 +103,7 @@ public class UserService {
         String newNickname = req.getNickname();
         if (newNickname != null && !newNickname.isBlank()) {
             if (!newNickname.equals(user.getNickname()) && userRepository.existsByNickname(newNickname)) {
-                throw new IllegalArgumentException("Nickname already exists");
+                throw new BusinessException(ErrorCode.DUPLICATE_NICKNAME, DUPLICATE_NICKNAME_MESSAGE);
             }
             user.setNickname(newNickname);
         }
@@ -138,13 +144,13 @@ public class UserService {
         String normalizedPhone = normalizePhone(req.getPhone());
 
         if (userRepository.existsByEmail(req.getEmail())) {
-            throw new IllegalArgumentException("Email already exists");
+            throw new BusinessException(ErrorCode.DUPLICATE_EMAIL, DUPLICATE_EMAIL_MESSAGE);
         }
-        if (userRepository.existsByNormalizedPhone(normalizedPhone, toAlternatePhone(normalizedPhone))) {
-            throw new IllegalArgumentException("Phone already exists");
+        if (userRepository.countByNormalizedPhoneVariants(normalizedPhone, toAlternatePhone(normalizedPhone)) > 0) {
+            throw new BusinessException(ErrorCode.DUPLICATE_PHONE, DUPLICATE_PHONE_MESSAGE);
         }
         if (userRepository.existsByNickname(req.getNickname())) {
-            throw new IllegalArgumentException("Nickname already exists");
+            throw new BusinessException(ErrorCode.DUPLICATE_NICKNAME, DUPLICATE_NICKNAME_MESSAGE);
         }
 
         if (passwordHash == null || passwordHash.isBlank()) {
