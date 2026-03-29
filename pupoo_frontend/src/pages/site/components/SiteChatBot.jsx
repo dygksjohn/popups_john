@@ -27,9 +27,11 @@ const chatStyles = `
 .scb-msg { animation: scb-msgPop .24s ease-out; }
 .scb-panel::-webkit-scrollbar { width: 4px; }
 .scb-panel::-webkit-scrollbar-track { background: transparent; }
-.scb-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 999px; transition: background .2s; }
-.scb-panel::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
-.scb-panel { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.12) transparent; }
+.scb-panel::-webkit-scrollbar-thumb { background: transparent; border-radius: 999px; transition: background .3s; }
+.scb-panel:hover::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.10); }
+.scb-panel:hover::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.20); }
+.scb-panel { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+.scb-panel:hover { scrollbar-color: rgba(255,255,255,0.10) transparent; }
 `;
 
 function fmt(date) {
