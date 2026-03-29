@@ -403,6 +403,13 @@ async function verifySignupStartDuplicateChecks(dbConfig) {
       scheduleCleanup(`DELETE FROM signup_sessions WHERE email = ${sqlString(testCase.payload.email)};`);
     }
 
+    const sessionCountBefore = Number(
+      dbScalar(
+        `SELECT COUNT(*) FROM signup_sessions WHERE email = ${sqlString(testCase.payload.email)};`,
+        dbConfig
+      )
+    );
+
     const response = await requestJson("POST", "/api/auth/signup/start", testCase.payload);
     expect(response.status === 409, `signup/start ${testCase.label} expected 409, got ${response.status}: ${response.text}`);
     expect(
@@ -414,13 +421,16 @@ async function verifySignupStartDuplicateChecks(dbConfig) {
       `signup/start ${testCase.label} expected "${testCase.expectedMessage}", got "${getApiMessage(response.json)}"`
     );
 
-    const sessionCount = Number(
+    const sessionCountAfter = Number(
       dbScalar(
         `SELECT COUNT(*) FROM signup_sessions WHERE email = ${sqlString(testCase.payload.email)};`,
         dbConfig
       )
     );
-    expect(sessionCount === 0, `signup/start ${testCase.label} created signup_sessions unexpectedly.`);
+    expect(
+      sessionCountAfter === sessionCountBefore,
+      `signup/start ${testCase.label} changed signup_sessions unexpectedly. before=${sessionCountBefore}, after=${sessionCountAfter}`
+    );
     log(`signup/start ${testCase.label} duplicate ok -> ${testCase.expectedCode}`);
   }
 }
