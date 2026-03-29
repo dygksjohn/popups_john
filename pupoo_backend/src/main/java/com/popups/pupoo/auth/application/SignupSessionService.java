@@ -351,22 +351,7 @@ public class SignupSessionService {
         userCreateRequest.setShowGender(false);
         userCreateRequest.setShowPet(false);
 
-        User saved;
-        try {
-            saved = userService.createWithPasswordHash(userCreateRequest, session.getPasswordHash());
-        } catch (IllegalArgumentException e) {
-            String message = e.getMessage();
-            if (message != null && message.contains("Email")) {
-                throw new BusinessException(ErrorCode.DUPLICATE_EMAIL);
-            }
-            if (message != null && message.contains("Phone")) {
-                throw new BusinessException(ErrorCode.DUPLICATE_PHONE);
-            }
-            if (message != null && message.contains("Nickname")) {
-                throw new BusinessException(ErrorCode.DUPLICATE_NICKNAME);
-            }
-            throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE);
-        }
+        User saved = userService.createWithPasswordHash(userCreateRequest, session.getPasswordHash());
 
         if (session.getSignupType() == SignupType.SOCIAL) {
             SocialLinkRequest linkRequest = new SocialLinkRequest();

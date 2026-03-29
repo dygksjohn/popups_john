@@ -29,12 +29,12 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByPhone(String phone);
 
     @Query(value = """
-            select case when count(*) > 0 then true else false end
+            select count(*)
               from users u
              where replace(replace(replace(u.phone, '-', ''), ' ', ''), '+', '') in (:normalizedPhone, :alternatePhone)
             """, nativeQuery = true)
-    boolean existsByNormalizedPhone(@Param("normalizedPhone") String normalizedPhone,
-                                    @Param("alternatePhone") String alternatePhone);
+    long countByNormalizedPhoneVariants(@Param("normalizedPhone") String normalizedPhone,
+                                        @Param("alternatePhone") String alternatePhone);
 
     @Query("select u.showPet from User u where u.userId = :userId")
     Boolean findShowPetByUserId(@Param("userId") Long userId);
