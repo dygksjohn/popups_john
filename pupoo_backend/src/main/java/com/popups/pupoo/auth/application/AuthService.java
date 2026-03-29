@@ -10,6 +10,7 @@ import com.popups.pupoo.auth.support.RefreshCookieRequestSupport;
 import com.popups.pupoo.auth.token.JwtProvider;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
+import com.popups.pupoo.common.observability.application.OperationsMetricsService;
 import com.popups.pupoo.user.application.UserService;
 import com.popups.pupoo.user.domain.enums.RoleName;
 import com.popups.pupoo.user.domain.enums.UserStatus;
@@ -47,6 +48,7 @@ public class AuthService {
     private final TokenService tokenService;
     private final JwtProvider jwtProvider;
     private final EmailVerificationService emailVerificationService;
+    private final OperationsMetricsService operationsMetricsService;
     private final boolean refreshCookieSecure;
     private final int refreshCookieMaxAgeSeconds;
     private final String refreshCookiePath;
@@ -59,6 +61,7 @@ public class AuthService {
             TokenService tokenService,
             JwtProvider jwtProvider,
             EmailVerificationService emailVerificationService,
+            OperationsMetricsService operationsMetricsService,
             @Value("${auth.refresh.cookie.secure:true}") boolean refreshCookieSecure,
             @Value("${auth.refresh.cookie.max-age-seconds:1209600}") int refreshCookieMaxAgeSeconds,
             @Value("${auth.refresh.cookie.path:/api/auth}") String refreshCookiePath
@@ -70,6 +73,7 @@ public class AuthService {
         this.tokenService = tokenService;
         this.jwtProvider = jwtProvider;
         this.emailVerificationService = emailVerificationService;
+        this.operationsMetricsService = operationsMetricsService;
         this.refreshCookieSecure = refreshCookieSecure;
         this.refreshCookieMaxAgeSeconds = refreshCookieMaxAgeSeconds;
         this.refreshCookiePath = refreshCookiePath;
@@ -89,9 +93,10 @@ public class AuthService {
     @Transactional
     public LoginResponse signup(UserCreateRequest req, HttpServletResponse response) {
         User saved = userService.create(req);
-        validateUserStatusForAuth(saved);
+        validateUserStatusForAuth(saved, "signup");
 
         LoginResponse loginResponse = issueTokensAndSetCookie(saved, response);
+        operationsMetricsService.recordLoginSuccess("signup");
         Long userId = saved.getUserId();
 
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
@@ -117,18 +122,24 @@ public class AuthService {
     @Transactional
     public LoginResponse login(LoginRequest req, HttpServletResponse response) {
         User user = userRepository.findByEmail(req.getEmail())
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> {
+                    operationsMetricsService.recordLoginFailure("password", "user_not_found");
+                    return new BusinessException(ErrorCode.USER_NOT_FOUND);
+                });
 
-        validateUserStatusForAuth(user);
+        validateUserStatusForAuth(user, "password");
 
         if (!passwordEncoder.matches(req.getPassword(), user.getPassword())) {
+            operationsMetricsService.recordLoginFailure("password", "invalid_credentials");
             throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
         }
 
         user.setLastLoginAt(LocalDateTime.now());
         userRepository.save(user);
 
-        return issueTokensAndSetCookie(user, response);
+        LoginResponse loginResponse = issueTokensAndSetCookie(user, response);
+        operationsMetricsService.recordLoginSuccess("password");
+        return loginResponse;
     }
 
     /**
@@ -136,12 +147,14 @@ public class AuthService {
      */
     @Transactional
     public LoginResponse loginByUser(User user, HttpServletResponse response) {
-        validateUserStatusForAuth(user);
+        validateUserStatusForAuth(user, "social");
 
         user.setLastLoginAt(LocalDateTime.now());
         userRepository.save(user);
 
-        return issueTokensAndSetCookie(user, response);
+        LoginResponse loginResponse = issueTokensAndSetCookie(user, response);
+        operationsMetricsService.recordLoginSuccess("social");
+        return loginResponse;
     }
 
     /**
@@ -151,19 +164,31 @@ public class AuthService {
     @Transactional
     public TokenResponse refreshToken(String refreshToken, HttpServletResponse response) {
         if (refreshToken == null || refreshToken.isBlank()) {
+            operationsMetricsService.recordRefreshFailure("missing_cookie");
             throw new BusinessException(ErrorCode.REFRESH_TOKEN_MISSING);
         }
 
         RefreshToken stored = refreshTokenRepository.findByToken(refreshToken)
-                .orElseThrow(() -> new BusinessException(ErrorCode.REFRESH_TOKEN_INVALID));
+                .orElseThrow(() -> {
+                    operationsMetricsService.recordRefreshFailure("invalid_token");
+                    return new BusinessException(ErrorCode.REFRESH_TOKEN_INVALID);
+                });
 
-        jwtProvider.validateRefreshToken(refreshToken);
+        try {
+            jwtProvider.validateRefreshToken(refreshToken);
+        } catch (BusinessException exception) {
+            operationsMetricsService.recordRefreshFailure(resolveFailureReason(exception));
+            throw exception;
+        }
 
         Long userId = jwtProvider.getUserId(refreshToken);
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> {
+                    operationsMetricsService.recordRefreshFailure("user_not_found");
+                    return new BusinessException(ErrorCode.USER_NOT_FOUND);
+                });
 
-        validateUserStatusForAuth(user);
+        validateUserStatusForAuth(user, "refresh");
 
         String roleName = user.getRoleName().name();
         String newAccess = tokenService.createAccessToken(userId, roleName);
@@ -179,6 +204,7 @@ public class AuthService {
         refreshTokenRepository.save(newRt);
 
         setRefreshCookie(response, newRefresh);
+        operationsMetricsService.recordRefreshSuccess();
 
         return new TokenResponse(newAccess);
     }
@@ -233,6 +259,39 @@ public class AuthService {
         if (status == UserStatus.SUSPENDED) {
             throw new BusinessException(ErrorCode.USER_SUSPENDED);
         }
+    }
+
+    private void validateUserStatusForAuth(User user, String flowKind) {
+        try {
+            validateUserStatusForAuth(user);
+        } catch (BusinessException exception) {
+            recordAuthFailure(flowKind, resolveFailureReason(exception));
+            throw exception;
+        }
+    }
+
+    private void recordAuthFailure(String flowKind, String reason) {
+        if ("refresh".equals(flowKind)) {
+            operationsMetricsService.recordRefreshFailure(reason);
+            return;
+        }
+        operationsMetricsService.recordLoginFailure(flowKind, reason);
+    }
+
+    private String resolveFailureReason(BusinessException exception) {
+        if (exception == null || exception.getErrorCode() == null) {
+            return "business_error";
+        }
+
+        return switch (exception.getErrorCode()) {
+            case USER_NOT_FOUND -> "user_not_found";
+            case INVALID_CREDENTIALS -> "invalid_credentials";
+            case USER_INACTIVE -> "user_inactive";
+            case USER_SUSPENDED -> "user_suspended";
+            case REFRESH_TOKEN_MISSING -> "missing_cookie";
+            case REFRESH_TOKEN_INVALID -> "invalid_token";
+            default -> "business_error";
+        };
     }
 
     private void normalizeLegacyAuthFields(User user) {

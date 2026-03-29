@@ -181,7 +181,6 @@ public class GoogleOAuthService {
     }
 
     private GoogleOauthLoginResponse toExistingUserLogin(User user, HttpServletResponse response) {
-        authService.validateUserStatusForAuthPublic(user);
         var loginResponse = authService.loginByUser(user, response);
 
         return GoogleOauthLoginResponse.builder()

@@ -192,8 +192,6 @@ public class NaverOAuthService {
     }
 
     private NaverOauthLoginResponse toExistingUserLogin(User user, HttpServletResponse response) {
-        authService.validateUserStatusForAuthPublic(user);
-
         var loginResponse = authService.loginByUser(user, response);
 
         return NaverOauthLoginResponse.builder()

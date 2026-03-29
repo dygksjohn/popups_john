@@ -147,8 +147,8 @@ async function main() {
   lines.push("");
   lines.push("## 수동 확인 필요 항목");
   lines.push("");
-  lines.push("- Google 실제 계정 로그인과 신규 가입은 외부 인증 화면, CAPTCHA, 선택 계정 상태 영향을 받으므로 사람 확인이 필요합니다.");
-  lines.push("- KakaoPay 승인, 취소, 실패 화면은 실제 PG 리다이렉트와 pg_token 흐름을 거쳐야 하므로 사람 확인이 필요합니다.");
+  lines.push("- Google 실제 계정 로그인과 신규 가입은 외부 인증 화면, CAPTCHA, 선택 계정 상태에 영향을 받으므로 별도 확인이 필요합니다.");
+  lines.push("- KakaoPay 승인, 취소, 실패 화면은 실제 PG 리다이렉트와 pg_token 흐름을 거치므로 별도 확인이 필요합니다.");
 
   const report = lines.join("\n");
   process.stdout.write(`${report}\n`);

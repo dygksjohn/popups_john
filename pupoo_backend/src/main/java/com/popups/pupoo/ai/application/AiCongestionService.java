@@ -27,6 +27,7 @@ import com.popups.pupoo.booth.persistence.BoothRepository;
 import com.popups.pupoo.booth.persistence.BoothWaitRepository;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
+import com.popups.pupoo.common.observability.application.OperationsMetricsService;
 import com.popups.pupoo.event.domain.enums.EventStatus;
 import com.popups.pupoo.event.domain.enums.RegistrationStatus;
 import com.popups.pupoo.event.domain.model.Event;
@@ -96,6 +97,7 @@ public class AiCongestionService {
     private final EventCongestionSignalQueryRepository eventCongestionSignalQueryRepository;
     private final AiInferenceClient aiInferenceClient;
     private final AiPredictionLogRepository aiPredictionLogRepository;
+    private final OperationsMetricsService operationsMetricsService;
 
     public AiCongestionService(
             EventRepository eventRepository,
@@ -112,7 +114,8 @@ public class AiCongestionService {
             AiProgramCongestionTimeseriesRepository aiProgramCongestionTimeseriesRepository,
             EventCongestionSignalQueryRepository eventCongestionSignalQueryRepository,
             AiInferenceClient aiInferenceClient,
-            AiPredictionLogRepository aiPredictionLogRepository
+            AiPredictionLogRepository aiPredictionLogRepository,
+            OperationsMetricsService operationsMetricsService
     ) {
         this.eventRepository = eventRepository;
         this.programRepository = programRepository;
@@ -129,6 +132,7 @@ public class AiCongestionService {
         this.eventCongestionSignalQueryRepository = eventCongestionSignalQueryRepository;
         this.aiInferenceClient = aiInferenceClient;
         this.aiPredictionLogRepository = aiPredictionLogRepository;
+        this.operationsMetricsService = operationsMetricsService;
     }
 
     public AiCongestionPredictionResponse predictEvent(Long eventId) {
@@ -244,6 +248,7 @@ public class AiCongestionService {
                 .orElseGet(() -> fallbackEventPrediction(event, baseTime, request));
         response = enforceScoreWaitConsistency(response);
         response = applyMeasuredHistoryBeforeBaseTime(response, event.getEventId(), baseTime);
+        operationsMetricsService.recordAiPrediction(response.targetType(), response.fallbackUsed());
         if (persistLog) {
             savePredictionLog(response);
         }
@@ -311,6 +316,7 @@ public class AiCongestionService {
         AiCongestionPredictionResponse response = aiInferenceClient.predictProgram(request)
                 .orElseGet(() -> fallbackProgramPrediction(program, baseTime, request));
         response = enforceScoreWaitConsistency(response);
+        operationsMetricsService.recordAiPrediction(response.targetType(), response.fallbackUsed());
         if (persistLog) {
             savePredictionLog(response);
         }

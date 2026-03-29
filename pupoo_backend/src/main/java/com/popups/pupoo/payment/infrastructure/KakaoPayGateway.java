@@ -12,6 +12,7 @@ import com.popups.pupoo.payment.persistence.PaymentTransactionRepository;
 import com.popups.pupoo.payment.port.PaymentGateway;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
+import com.popups.pupoo.common.observability.application.OperationsMetricsService;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Component;
 import org.springframework.data.domain.PageRequest;
@@ -42,15 +43,18 @@ public class KakaoPayGateway implements PaymentGateway {
     private final KakaoPayClient client;
     private final KakaoPayProperties props;
     private final PaymentTransactionRepository txRepository;
+    private final OperationsMetricsService operationsMetricsService;
 
     public KakaoPayGateway(
             KakaoPayClient client,
             KakaoPayProperties props,
-            PaymentTransactionRepository txRepository
+            PaymentTransactionRepository txRepository,
+            OperationsMetricsService operationsMetricsService
     ) {
         this.client = client;
         this.props = props;
         this.txRepository = txRepository;
+        this.operationsMetricsService = operationsMetricsService;
     }
 
 
@@ -182,6 +186,7 @@ private PaymentTransaction findLatestTxForUpdate(Long paymentId) {
                     client.toJson(res)
             );
             txRepository.save(tx);
+            operationsMetricsService.recordPaymentStageSuccess("ready", "kakaopay");
 
             return new PaymentReadyResponse(
                     payment.getPaymentId(),
@@ -191,6 +196,7 @@ private PaymentTransaction findLatestTxForUpdate(Long paymentId) {
                     res.next_redirect_mobile_url()
             );
         } catch (RestClientResponseException e) {
+            operationsMetricsService.recordPaymentStageFailure("ready", "kakaopay", "http_error");
             log.error(
                     "[KakaoPay][READY][ERROR] status={}, body={}, cid={}, total={}, approvalUrl={}, cancelUrl={}, failUrl={}",
                     e.getRawStatusCode(),
@@ -204,6 +210,7 @@ private PaymentTransaction findLatestTxForUpdate(Long paymentId) {
             );
             throw new BusinessException(ErrorCode.PAYMENT_PG_ERROR, e.getResponseBodyAsString());
         } catch (Exception e) {
+            operationsMetricsService.recordPaymentStageFailure("ready", "kakaopay", "unexpected");
             log.error("[KakaoPay][READY][UNEXPECTED]", e);
             throw new BusinessException(ErrorCode.PAYMENT_PG_ERROR, e.toString());
         }
@@ -265,8 +272,10 @@ private PaymentTransaction findLatestTxForUpdate(Long paymentId) {
         try {
             KakaoPayApproveResponse res = client.approve(approveReq);
             tx.markApproved(client.toJson(res));
+            operationsMetricsService.recordPaymentStageSuccess("approve", "kakaopay");
             return true;
         } catch (RestClientResponseException e) {
+            operationsMetricsService.recordPaymentStageFailure("approve", "kakaopay", "http_error");
             log.error("[KakaoPay][APPROVE][ERROR] status={}, body={}",
                     e.getRawStatusCode(),
                     e.getResponseBodyAsString(),
@@ -274,6 +283,7 @@ private PaymentTransaction findLatestTxForUpdate(Long paymentId) {
             tx.markFailed(e.getResponseBodyAsString());
             return false;
         } catch (Exception e) {
+            operationsMetricsService.recordPaymentStageFailure("approve", "kakaopay", "unexpected");
             log.error("[KakaoPay][APPROVE][UNEXPECTED]", e);
             tx.markFailed(e.toString());
             return false;
@@ -327,8 +337,10 @@ private PaymentTransaction findLatestTxForUpdate(Long paymentId) {
         try {
             KakaoPayCancelResponse res = client.cancel(cancelReq);
             tx.markCancelled(client.toJson(res));
+            operationsMetricsService.recordPaymentStageSuccess("cancel", "kakaopay");
             return true;
         } catch (RestClientResponseException e) {
+            operationsMetricsService.recordPaymentStageFailure("cancel", "kakaopay", "http_error");
             log.error("[KakaoPay][CANCEL][ERROR] status={}, body={}",
                     e.getRawStatusCode(),
                     e.getResponseBodyAsString(),
@@ -336,6 +348,7 @@ private PaymentTransaction findLatestTxForUpdate(Long paymentId) {
             tx.markFailed(e.getResponseBodyAsString());
             return false;
         } catch (Exception e) {
+            operationsMetricsService.recordPaymentStageFailure("cancel", "kakaopay", "unexpected");
             log.error("[KakaoPay][CANCEL][UNEXPECTED]", e);
             tx.markFailed(e.toString());
             return false;

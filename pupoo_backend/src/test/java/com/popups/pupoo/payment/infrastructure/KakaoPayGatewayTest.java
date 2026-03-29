@@ -5,6 +5,8 @@ import com.popups.pupoo.payment.domain.model.Payment;
 import com.popups.pupoo.payment.domain.model.PaymentTransaction;
 import com.popups.pupoo.payment.dto.PaymentReadyRequest;
 import com.popups.pupoo.payment.persistence.PaymentTransactionRepository;
+import com.popups.pupoo.common.observability.application.OperationsMetricsService;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -55,7 +57,12 @@ class KakaoPayGatewayTest {
         ));
         when(client.toJson(any())).thenReturn("{\"tid\":\"T123\"}");
 
-        KakaoPayGateway gateway = new KakaoPayGateway(client, props, txRepository);
+        KakaoPayGateway gateway = new KakaoPayGateway(
+                client,
+                props,
+                txRepository,
+                new OperationsMetricsService(new SimpleMeterRegistry())
+        );
         Payment payment = Payment.requested(8004L, 3L, 28208L, "PTESTORDER001", BigDecimal.valueOf(1000), PaymentProvider.KAKAOPAY);
         ReflectionTestUtils.setField(payment, "paymentId", 99001L);
 
@@ -101,7 +108,12 @@ class KakaoPayGatewayTest {
         ));
         when(client.toJson(any())).thenReturn("{\"tid\":\"T456\"}");
 
-        KakaoPayGateway gateway = new KakaoPayGateway(client, props, txRepository);
+        KakaoPayGateway gateway = new KakaoPayGateway(
+                client,
+                props,
+                txRepository,
+                new OperationsMetricsService(new SimpleMeterRegistry())
+        );
         Payment payment = Payment.requested(8004L, 3L, 28208L, "PTESTORDER002", BigDecimal.valueOf(1500), PaymentProvider.KAKAOPAY);
         ReflectionTestUtils.setField(payment, "paymentId", 99002L);
 

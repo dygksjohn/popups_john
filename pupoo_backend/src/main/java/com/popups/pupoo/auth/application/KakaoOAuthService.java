@@ -197,8 +197,6 @@ public class KakaoOAuthService {
     }
 
     private KakaoOauthLoginResponse toExistingUserLogin(User user, HttpServletResponse response) {
-        authService.validateUserStatusForAuthPublic(user);
-
         var loginResponse = authService.loginByUser(user, response);
 
         return KakaoOauthLoginResponse.builder()
