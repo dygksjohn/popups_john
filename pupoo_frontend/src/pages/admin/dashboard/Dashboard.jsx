@@ -7,7 +7,6 @@ import {
   Megaphone,
   LogOut,
   Settings,
-  PawPrint,
   LayoutGrid,
   Clipboard,
   Users,
@@ -559,54 +558,16 @@ export default function Dashboard() {
             padding: "22px 18px 16px",
             display: "flex",
             alignItems: "center",
-            gap: 10,
           }}
         >
-          <div
+          <img
+            src="/logo_white7.png"
+            alt="pupoo logo"
             style={{
-              width: 34,
-              height: 34,
-              borderRadius: 9,
-              background: ds.brand,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: `0 2px 10px ${ds.brand}44`,
+              height: 24,
+              objectFit: "contain",
             }}
-          >
-            <PawPrint size={18} color="#fff" strokeWidth={2.5} />
-          </div>
-          <div>
-            <div
-              style={{
-                fontSize: 16,
-                fontWeight: 800,
-                color: ds.inkW,
-                letterSpacing: -0.5,
-              }}
-            >
-              <img
-                src="/logo_white7.png"
-                alt="pupoo logo"
-                style={{
-                  height: 20,
-                  objectFit: "contain",
-                  cursor: "pointer",
-                }}
-              />
-            </div>
-            <div
-              style={{
-                fontSize: 8,
-                fontWeight: 600,
-                color: ds.inkWG,
-                letterSpacing: 1.2,
-                textTransform: "uppercase",
-              }}
-            >
-              Admin Console
-            </div>
-          </div>
+          />
         </div>
 
         {/* menu groups */}
