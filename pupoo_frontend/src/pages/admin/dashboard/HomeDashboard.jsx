@@ -684,8 +684,9 @@ export default function HomeDashboard({ initialEventId = null }) {
         : null;
       const selectedEventStatus = selectedEvent?.status;
       const selectedEventIsPlanned = selectedEventStatus === "PLANNED";
-      // 운영자 관점에서는 종료 행사도 같은 AI 예측축으로 비교할 수 있어야 한다.
-      const selectedEventSupportsDateSelection = Boolean(selectedEvent);
+      // 종료 행사는 실제 집계 혼잡도를 기준으로 보여주고, 예측축은 진행중/예정 행사에만 사용한다.
+      const selectedEventSupportsDateSelection =
+        selectedEventStatus === "PLANNED" || selectedEventStatus === "ONGOING";
       const selectedEventDate = selectedEventSupportsDateSelection
         ? clampDateToEventRange(
             selectedCongestionDate || toDateInputValue(new Date()),
@@ -792,8 +793,6 @@ export default function HomeDashboard({ initialEventId = null }) {
       const selectedPredictionRows = normalizeAiPredictionRows(
         selectedEventPredictionPayload,
       );
-      // 선택한 행사는 종료 후에도 AI 비교 차트를 유지해 LightGBM과 LSTM을
-      // 단일선으로 되돌리지 않고 같은 화면에서 계속 비교할 수 있게 한다.
       const useSelectedDatePrediction =
         selectedEventSupportsDateSelection &&
         Boolean(selectedEventDate) &&
@@ -1091,6 +1090,8 @@ export default function HomeDashboard({ initialEventId = null }) {
   const selectedScope = selectedEventId !== "ALL" && snapshot.focusEvent;
   const isSelectedPlannedEvent =
     selectedScope && snapshot.focusEvent?.status === "PLANNED";
+  const isSelectedEndedEvent =
+    selectedScope && snapshot.focusEvent?.status === "ENDED";
   const showPlannedPrediction = isSelectedPlannedEvent;
   const isAllEventCongestionView =
     !selectedScope &&
@@ -1121,7 +1122,9 @@ export default function HomeDashboard({ initialEventId = null }) {
         ? `${snapshot.focusEvent.eventName} · ${effectiveCongestionDate || "선택일"} 시간대별 예상 혼잡도`
         : isSelectedPlannedEvent
           ? `${snapshot.focusEvent.eventName} · 일별 혼잡도 예측 대기`
-          : `${snapshot.focusEvent.eventName} 행사 기준 시간대별 실시간 혼잡도`
+          : isSelectedEndedEvent
+            ? `${snapshot.focusEvent.eventName} 행사 기준 시간대별 실제 혼잡도`
+            : `${snapshot.focusEvent.eventName} 행사 기준 시간대별 실시간 혼잡도`
       : "행사를 선택하면 시간대별 혼잡 추이를 보여줍니다.";
 
   return (
@@ -1220,7 +1223,9 @@ export default function HomeDashboard({ initialEventId = null }) {
           handset={isHandset}
             action={(
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: isHandset ? "flex-start" : "flex-end", width: isHandset ? "100%" : "auto" }}>
-                {selectedScope ? (
+                {selectedScope &&
+                (snapshot.focusEvent?.status === "ONGOING" ||
+                  snapshot.focusEvent?.status === "PLANNED") ? (
                   <input
                     type="date"
                     value={effectiveCongestionDate}
