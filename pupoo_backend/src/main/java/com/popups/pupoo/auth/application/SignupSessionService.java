@@ -145,6 +145,8 @@ public class SignupSessionService {
             }
         }
 
+        userService.validateSignupAvailability(request.getEmail(), nickname, phone);
+
         signupSessionRepository.findTopByPhoneAndOtpLastSentAtIsNotNullOrderByOtpLastSentAtDesc(phone)
                 .ifPresent(latest -> {
                     LocalDateTime limit = latest.getOtpLastSentAt().plusSeconds(otpCooldownSeconds);

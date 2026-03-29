@@ -44,6 +44,24 @@ public class UserService {
         return !userRepository.existsByNickname(value);
     }
 
+    @Transactional(readOnly = true)
+    public void validateSignupAvailability(String email, String nickname, String phone) {
+        String emailValue = email == null ? "" : email.trim();
+        String nicknameValue = nickname == null ? "" : nickname.trim();
+        String normalizedPhone = normalizePhone(phone);
+
+        if (!emailValue.isBlank() && userRepository.existsByEmail(emailValue)) {
+            throw new BusinessException(ErrorCode.DUPLICATE_EMAIL, DUPLICATE_EMAIL_MESSAGE);
+        }
+        if (!normalizedPhone.isBlank()
+                && userRepository.countByNormalizedPhoneVariants(normalizedPhone, toAlternatePhone(normalizedPhone)) > 0) {
+            throw new BusinessException(ErrorCode.DUPLICATE_PHONE, DUPLICATE_PHONE_MESSAGE);
+        }
+        if (!nicknameValue.isBlank() && userRepository.existsByNickname(nicknameValue)) {
+            throw new BusinessException(ErrorCode.DUPLICATE_NICKNAME, DUPLICATE_NICKNAME_MESSAGE);
+        }
+    }
+
     /**
      * 회원가입을 위한 사용자 생성
      * - 중복 검증 후 사용자 엔티티를 생성/저장하고 엔티티를 반환한다.
@@ -52,16 +70,7 @@ public class UserService {
     @Transactional
     public User create(UserCreateRequest req) {
         String normalizedPhone = normalizePhone(req.getPhone());
-
-        if (userRepository.existsByEmail(req.getEmail())) {
-            throw new BusinessException(ErrorCode.DUPLICATE_EMAIL, DUPLICATE_EMAIL_MESSAGE);
-        }
-        if (userRepository.countByNormalizedPhoneVariants(normalizedPhone, toAlternatePhone(normalizedPhone)) > 0) {
-            throw new BusinessException(ErrorCode.DUPLICATE_PHONE, DUPLICATE_PHONE_MESSAGE);
-        }
-        if (userRepository.existsByNickname(req.getNickname())) {
-            throw new BusinessException(ErrorCode.DUPLICATE_NICKNAME, DUPLICATE_NICKNAME_MESSAGE);
-        }
+        validateSignupAvailability(req.getEmail(), req.getNickname(), req.getPhone());
 
         User user = new User();
         user.setEmail(req.getEmail());
@@ -142,16 +151,7 @@ public class UserService {
     @Transactional
     public User createWithPasswordHash(UserCreateRequest req, String passwordHash) {
         String normalizedPhone = normalizePhone(req.getPhone());
-
-        if (userRepository.existsByEmail(req.getEmail())) {
-            throw new BusinessException(ErrorCode.DUPLICATE_EMAIL, DUPLICATE_EMAIL_MESSAGE);
-        }
-        if (userRepository.countByNormalizedPhoneVariants(normalizedPhone, toAlternatePhone(normalizedPhone)) > 0) {
-            throw new BusinessException(ErrorCode.DUPLICATE_PHONE, DUPLICATE_PHONE_MESSAGE);
-        }
-        if (userRepository.existsByNickname(req.getNickname())) {
-            throw new BusinessException(ErrorCode.DUPLICATE_NICKNAME, DUPLICATE_NICKNAME_MESSAGE);
-        }
+        validateSignupAvailability(req.getEmail(), req.getNickname(), req.getPhone());
 
         if (passwordHash == null || passwordHash.isBlank()) {
             throw new IllegalArgumentException("Password hash missing");
