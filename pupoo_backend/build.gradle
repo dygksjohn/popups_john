@@ -225,6 +225,14 @@ tasks.named('processResources') {
 tasks.named('clean') {
 	delete(generatedFrontendResourcesDir)
 }
+tasks.register('printBcryptHash', JavaExec) {
+	group = 'verification'
+	description = 'Print a BCrypt hash for the provided password.'
+	dependsOn(tasks.named('classes'))
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass = 'com.popups.pupoo.common.util.BcryptHashPrinter'
+	args((findProperty('bcryptInput') ?: System.getenv('BCRYPT_INPUT') ?: 'admin1234') as String)
+}
 
 /* =========================
  * 운영 배포용 Jar 이름 고정
