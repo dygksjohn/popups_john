@@ -181,7 +181,7 @@ const MODAL_MESSAGES = [
   { emoji: "🥺", title: "진짜 나가요?", desc: "우리가 얼마나 고생했는데..." },
   { emoji: "😤", title: "아직이요", desc: "끝까지 봐주는 게 예의 아닌가요" },
   { emoji: "🐾", title: "발도장 안 찍고 가게?", desc: "강아지가 슬퍼합니다" },
-  { emoji: "💔", title: "마음이 아프다", desc: "최멍철은 말 안 하지만 속으로 울고 있어요" },
+  { emoji: "💔", title: "마음이 아프다", desc: "배재혁은 말 안 하지만 속으로 울고 있어요" },
 ];
 
 export default function Credits() {
@@ -230,7 +230,7 @@ export default function Credits() {
 
         <div className="cr-block">
           <div className="cr-role-label">Frontend Developer</div>
-          <div className="cr-person">김멍식</div>
+          <div className="cr-person">남광우(팀장)</div>
           <div className="cr-sub">"돈까스 먹으러 갈 사람?"</div>
           <div className="cr-detail">
             하루 평균 3.7회 돈까스 소집<br />
@@ -241,7 +241,7 @@ export default function Credits() {
 
         <div className="cr-block">
           <div className="cr-role-label">Designer &amp; Quality Destroyer</div>
-          <div className="cr-person">박멍구</div>
+          <div className="cr-person">김기정</div>
           <div className="cr-sub">"아... 별론데"</div>
           <div className="cr-detail">
             "아 별론데" 누적 발언 횟수: 2,847회<br />
@@ -254,7 +254,7 @@ export default function Credits() {
 
         <div className="cr-block">
           <div className="cr-role-label">Backend Developer</div>
-          <div className="cr-person">이멍뭉</div>
+          <div className="cr-person">정요한</div>
           <div className="cr-sub">"아 내가 할게! 아 할 수 있어!"</div>
           <div className="cr-detail">
             → 의욕 MAX<br />
@@ -265,7 +265,7 @@ export default function Credits() {
 
         <div className="cr-block">
           <div className="cr-role-label">Full-Stack Developer</div>
-          <div className="cr-person">최멍철</div>
+          <div className="cr-person">배재혁</div>
           <div className="cr-sub">...</div>
           <div className="cr-detail">
             묵묵하게 자기 일 꾸준히 처리<br />
