@@ -562,7 +562,7 @@ export default function Dashboard() {
             src="/logo_white7.png"
             alt="pupoo logo"
             style={{
-              height: 24,
+              height: 29,
               objectFit: "contain",
             }}
           />
