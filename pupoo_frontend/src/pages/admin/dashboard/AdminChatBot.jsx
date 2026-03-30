@@ -1025,8 +1025,8 @@ export default function AdminChatBot() {
     setIsHomeView(true);
   };
 
-  const mobilePanelBottom = "calc(env(safe-area-inset-bottom, 0px) + 132px)";
-  const mobileButtonBottom = "calc(env(safe-area-inset-bottom, 0px) + 84px)";
+  const mobilePanelBottom = 80;
+  const mobileButtonBottom = 16;
   const panelShift = "var(--admin-board-panel-offset, 0px)";
   const rightChatOpen = isMobile
     ? `calc(10px + ${panelShift})`
@@ -1047,9 +1047,7 @@ export default function AdminChatBot() {
             right: rightChatOpen,
             width: isMobile ? "min(calc(100vw - 16px), 336px)" : 390,
             maxWidth: isMobile ? "calc(100vw - 16px)" : 390,
-            height: isMobile
-              ? "min(calc(100dvh - env(safe-area-inset-bottom, 0px) - 84px), 520px)"
-              : 580,
+            height: isMobile ? "min(calc(100dvh - 160px), 520px)" : 580,
             borderRadius: isMobile ? 20 : 24,
             background: "#fff",
             boxShadow:
